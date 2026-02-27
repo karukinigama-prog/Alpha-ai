@@ -16,7 +16,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-st.title("Alpha AI")
+st.title("💥Alpha AI")
 st.info("Created by Hasith | Powered by Groq LPU™")
 
 # Initialize Chat History
