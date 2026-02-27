@@ -1,44 +1,69 @@
 import streamlit as st
 from groq import Groq
+import uuid
 
 # Page Configuration
 st.set_page_config(page_title="☯ Alpha AI", page_icon="☯", layout="centered")
 
-# Initialize Chat History in session state if not present
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# --- Initialize Session States ---
+if "all_chats" not in st.session_state:
+    st.session_state.all_chats = {}  # Store all chat sessions {id: messages}
 
-# --- Sidebar - Creator Info & Recent Chats ---
+if "current_chat_id" not in st.session_state:
+    st.session_state.current_chat_id = None
+
+# Function to start a new chat
+def start_new_chat():
+    new_id = str(uuid.uuid4())
+    st.session_state.all_chats[new_id] = []
+    st.session_state.current_chat_id = new_id
+
+# Start a default chat if none exists
+if st.session_state.current_chat_id is None:
+    start_new_chat()
+
+# --- Sidebar - Chat Management ---
 with st.sidebar:
     st.title("🤖 Alpha AI")
-    st.markdown("---")
     st.write("**Creator:** Hasith")
-    st.write("**Model:** Llama 3.3 70B")
-    st.write("**Type:** Sinhala Assistant")
     
+    if st.button("➕ New Chat", use_container_width=True):
+        start_new_chat()
+        st.rerun()
+    
+    st.markdown("---")
     st.markdown("### 🕒 Recent Chats")
     
-    # Filter and display user messages in the sidebar
-    if st.session_state.messages:
-        user_messages = [m for m in st.session_state.messages if m["role"] == "user"]
-        for i, msg in enumerate(user_messages):
-            # Show the first 25 characters as a label
-            short_text = msg['content'][:25] + "..." if len(msg['content']) > 25 else msg['content']
-            st.info(f"💬 {short_text}")
-    else:
-        st.write("No history available yet.")
+    # Display chat history labels in sidebar
+    for chat_id, messages in st.session_state.all_chats.items():
+        # Label is the first user message or "New Chat"
+        if messages:
+            first_user_msg = next((m["content"] for m in messages if m["role"] == "user"), "Empty Chat")
+            label = f"💬 {first_user_msg[:20]}..."
+        else:
+            label = "💬 New Chat"
+        
+        # If clicked, switch to that chat ID
+        if st.button(label, key=chat_id, use_container_width=True):
+            st.session_state.current_chat_id = chat_id
+            st.rerun()
 
     st.markdown("---")
-    if st.button("Clear Chat History", use_container_width=True):
-        st.session_state.messages = []
+    if st.button("🗑 Clear All Chats", use_container_width=True):
+        st.session_state.all_chats = {}
+        st.session_state.current_chat_id = None
+        start_new_chat()
         st.rerun()
 
 # --- Main Interface ---
 st.title("💥 Alpha AI")
 st.info("Created by Hasith | Powered by Groq LPU™")
 
-# Display Chat History on Main Screen
-for message in st.session_state.messages:
+# Get current messages
+current_messages = st.session_state.all_chats[st.session_state.current_chat_id]
+
+# Display current chat history
+for message in current_messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
@@ -46,15 +71,15 @@ for message in st.session_state.messages:
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=GROQ_API_KEY)
-except Exception as e:
+except Exception:
     st.error("Please add GROQ_API_KEY to your Streamlit Secrets.")
     st.stop()
 
 # Handle Text Input
 if prompt := st.chat_input("Ask Alpha anything..."):
     
-    # Add user prompt to history
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Add user prompt to current session
+    current_messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
@@ -73,7 +98,7 @@ if prompt := st.chat_input("Ask Alpha anything..."):
                                 "Do not mention image generation."
                             )
                         },
-                        *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+                        *[{"role": m["role"], "content": m["content"]} for m in current_messages]
                     ],
                     model="llama-3.3-70b-versatile",
                 )
@@ -81,10 +106,8 @@ if prompt := st.chat_input("Ask Alpha anything..."):
                 response_text = chat_completion.choices[0].message.content
                 st.markdown(response_text)
             
-        # Save response to history
-        st.session_state.messages.append({"role": "assistant", "content": response_text})
-        
-        # Rerun to update sidebar
+        # Save response to current history
+        current_messages.append({"role": "assistant", "content": response_text})
         st.rerun()
         
     except Exception as e:
