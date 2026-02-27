@@ -2,7 +2,7 @@ import streamlit as st
 from groq import Groq
 
 # Page Configuration
-st.set_page_config(page_title="Alpha AI", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="Alpha AI", page_icon="☯", layout="centered")
 
 # Sidebar - Creator Info
 with st.sidebar:
