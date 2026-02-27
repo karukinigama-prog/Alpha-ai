@@ -4,7 +4,11 @@ from groq import Groq
 # Page Configuration
 st.set_page_config(page_title="☯ Alpha AI", page_icon="☯", layout="centered")
 
-# Sidebar - Creator Info
+# Initialize Chat History in session state if not present
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# --- Sidebar - Creator Info & Recent Chats ---
 with st.sidebar:
     st.title("🤖 Alpha AI")
     st.markdown("---")
@@ -12,24 +16,35 @@ with st.sidebar:
     st.write("**Model:** Llama 3.3 70B")
     st.write("**Type:** Text Assistant")
     
-    if st.button("Clear Chat History"):
+    st.markdown("### 🕒 Recent Chats")
+    
+    # Filter and display user messages in the sidebar as history labels
+    if st.session_state.messages:
+        user_messages = [m for m in st.session_state.messages if m["role"] == "user"]
+        for i, msg in enumerate(user_messages):
+            # Show the first 25 characters of the prompt as a label
+            short_text = msg['content'][:25] + "..." if len(msg['content']) > 25 else msg['content']
+            st.info(f"💬 {short_text}")
+    else:
+        st.write("No history available yet.")
+
+    st.markdown("---")
+    if st.button("Clear Chat History", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-st.title("💥Alpha AI")
+# --- Main Interface ---
+st.title("💥 Alpha AI")
 st.info("Created by Hasith | Powered by Groq LPU™")
 
-# Initialize Chat History
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Display Chat History
+# Display Chat History on Main Screen
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # Securely Access API Key
 try:
+    # Fetching API Key from Streamlit Secrets
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=GROQ_API_KEY)
 except Exception as e:
@@ -47,7 +62,6 @@ if prompt := st.chat_input("Ask Alpha anything..."):
     # Generate Text Response
     try:
         with st.chat_message("assistant"):
-            # Added a loading spinner for a better UI experience
             with st.spinner("Alpha is thinking..."):
                 chat_completion = client.chat.completions.create(
                     messages=[
@@ -65,6 +79,9 @@ if prompt := st.chat_input("Ask Alpha anything..."):
             
         # Save response to history
         st.session_state.messages.append({"role": "assistant", "content": response_text})
+        
+        # Rerun to update the sidebar history immediately
+        st.rerun()
         
     except Exception as e:
         st.error(f"Error: {e}")
