@@ -14,15 +14,15 @@ with st.sidebar:
     st.markdown("---")
     st.write("**Creator:** Hasith")
     st.write("**Model:** Llama 3.3 70B")
-    st.write("**Type:** Text Assistant")
+    st.write("**Type:** Sinhala Assistant")
     
     st.markdown("### 🕒 Recent Chats")
     
-    # Filter and display user messages in the sidebar as history labels
+    # Filter and display user messages in the sidebar
     if st.session_state.messages:
         user_messages = [m for m in st.session_state.messages if m["role"] == "user"]
         for i, msg in enumerate(user_messages):
-            # Show the first 25 characters of the prompt as a label
+            # Show the first 25 characters as a label
             short_text = msg['content'][:25] + "..." if len(msg['content']) > 25 else msg['content']
             st.info(f"💬 {short_text}")
     else:
@@ -44,7 +44,6 @@ for message in st.session_state.messages:
 
 # Securely Access API Key
 try:
-    # Fetching API Key from Streamlit Secrets
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=GROQ_API_KEY)
 except Exception as e:
@@ -59,7 +58,7 @@ if prompt := st.chat_input("Ask Alpha anything..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Generate Text Response
+    # Generate Response
     try:
         with st.chat_message("assistant"):
             with st.spinner("Alpha is thinking..."):
@@ -67,7 +66,12 @@ if prompt := st.chat_input("Ask Alpha anything..."):
                     messages=[
                         {
                             "role": "system", 
-                            "content": "You are Alpha, a professional text-based AI assistant created by Hasith. You are powered by Llama 3.3 70B. Your goal is to provide accurate text responses in English. Do not mention image generation."
+                            "content": (
+                                "You are Alpha, a professional AI assistant created by Hasith. "
+                                "Your goal is to provide very meaningful and accurate responses "
+                                "ONLY in simple Sinhala. Ensure every single letter is in Sinhala. "
+                                "Do not mention image generation."
+                            )
                         },
                         *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
                     ],
@@ -80,7 +84,7 @@ if prompt := st.chat_input("Ask Alpha anything..."):
         # Save response to history
         st.session_state.messages.append({"role": "assistant", "content": response_text})
         
-        # Rerun to update the sidebar history immediately
+        # Rerun to update sidebar
         st.rerun()
         
     except Exception as e:
