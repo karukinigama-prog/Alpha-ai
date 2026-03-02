@@ -1,125 +1,190 @@
 import streamlit as st
 import google.generativeai as genai
-import uuid
+import sqlite3
+import hashlib
+from datetime import datetime
+from PIL import Image
+import sys
+from io import StringIO
 
-# Page Configuration
-st.set_page_config(page_title="☯ Alpha AI", page_icon="☯", layout="centered")
+# --- 1. Database Setup ---
+conn = sqlite3.connect('alpha_ultimate_v3.db', check_same_thread=False)
+c = conn.cursor()
+c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT UNIQUE, password TEXT, word_count INTEGER DEFAULT 0)')
+c.execute('CREATE TABLE IF NOT EXISTS feedback_table(username TEXT, feedback TEXT, date TEXT)')
+conn.commit()
 
-# --- Initialize Session States ---
-if "all_chats" not in st.session_state:
-    st.session_state.all_chats = {}  # Dictionary to store {chat_id: messages_list}
+# --- 2. Helper Functions ---
+def make_hashes(password):
+    return hashlib.sha256(str.encode(password)).hexdigest()
 
-if "current_chat_id" not in st.session_state:
-    st.session_state.current_chat_id = None
+def check_hashes(password, hashed_text):
+    return make_hashes(password) == hashed_text
 
-# Function to start a new chat session
-def start_new_chat():
-    new_id = str(uuid.uuid4())
-    st.session_state.all_chats[new_id] = []
-    st.session_state.current_chat_id = new_id
+def add_userdata(username, password):
+    try:
+        c.execute('INSERT INTO userstable(username,password,word_count) VALUES (?,?,?)', (username, password, 0))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
 
-# Ensure at least one chat session exists
-if st.session_state.current_chat_id is None:
-    start_new_chat()
+def login_user(username, password):
+    c.execute('SELECT * FROM userstable WHERE username =? AND password =?', (username, password))
+    return c.fetchone()
 
-# --- Google Gemini API Setup ---
-try:
-    # Ensure GEMINI_API_KEY is added to your Streamlit Secrets
-    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=GEMINI_API_KEY)
-    
-    # Model configuration for Gemini 2.5 Flash
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash", 
-        system_instruction=(
-            "You are Alpha, a professional AI assistant created by Hasith. "
-            "Your goal is to provide very meaningful and accurate responses "
-            "ONLY in simple Sinhala. Ensure every single letter is in Sinhala. "
-            "Do not mention image generation."
-        )
-    )
-except Exception as e:
-    st.error("Please add GEMINI_API_KEY to your Streamlit Secrets.")
-    st.stop()
+def update_word_count(username, count):
+    # Track word usage for all users including admin
+    c.execute('UPDATE userstable SET word_count = word_count + ? WHERE username = ?', (count, username))
+    conn.commit()
 
-# --- Sidebar - Chat Management ---
-with st.sidebar:
-    st.title("🤖 Alpha AI")
-    st.write("**Creator:** Hasith")
-    st.write("**Model:** Gemini 2.5 Flash")
-    
-    if st.button("➕ New Chat", use_container_width=True):
-        start_new_chat()
-        st.rerun()
-    
-    st.markdown("---")
-    st.markdown("### 🕒 Recent Chats")
-    
-    # Display historical chats in the sidebar
-    for chat_id, messages in st.session_state.all_chats.items():
-        if messages:
-            # Use the first user message as the title for the sidebar button
-            first_msg = next((m["content"] for m in messages if m["role"] == "user"), "New Chat")
-            label = f"💬 {first_msg[:25]}..."
-        else:
-            label = "💬 New Chat"
+# --- 3. Page Config & Professional Styling ---
+st.set_page_config(page_title="Alpha AI Elite", page_icon="☯", layout="wide")
+
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    .stButton>button { width: 100%; border-radius: 10px; font-weight: bold; transition: 0.3s; }
+    .stButton>button:hover { background-color: #4CAF50; color: white; }
+    .admin-box { background-color: #1a1c23; padding: 15px; border-radius: 10px; border-left: 5px solid #4CAF50; margin-bottom: 10px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 4. Session State Control ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "username" not in st.session_state:
+    st.session_state.username = ""
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# --- 5. Integrated Login/Registration Portal ---
+if not st.session_state.logged_in:
+    cols = st.columns([1, 1.8, 1])
+    with cols[1]:
+        st.title("☯ Alpha AI Elite Portal")
+        auth_mode = st.tabs(["🔑 Login", "📝 Register", "🛡 Creator Access"])
+
+        with auth_mode[0]:
+            user = st.text_input("Username", key="l_user")
+            passwd = st.text_input("Password", type='password', key="l_pass")
+            if st.button("Log In"):
+                result = login_user(user, make_hashes(passwd))
+                if result:
+                    st.session_state.logged_in = True
+                    st.session_state.username = user
+                    st.rerun()
+                else:
+                    st.error("Invalid Login Credentials")
+
+        with auth_mode[1]:
+            new_user = st.text_input("Choose Username", key="r_user")
+            new_pass = st.text_input("Choose Password", type='password', key="r_pass")
+            if st.button("Register Account"):
+                if new_user.lower() == "hasith12356":
+                    st.error("Username reserved for Creator.")
+                elif add_userdata(new_user, make_hashes(new_pass)):
+                    st.success("Registration Successful! Please Login.")
+                else:
+                    st.error("Username already taken.")
+
+        with auth_mode[2]:
+            st.info("Direct access for Creator Hasith.")
+            admin_id = st.text_input("Enter Admin Secret Key", type='password')
+            if st.button("Unlock Alpha"):
+                if admin_id == "hasith12356":
+                    st.session_state.logged_in = True
+                    st.session_state.username = "hasith12356"
+                    st.success("Welcome back, Hasith!")
+                    # Ensure admin exists in word count table
+                    c.execute('INSERT OR IGNORE INTO userstable(username,password,word_count) VALUES (?,?,?)', ("hasith12356", "admin_bypass", 0))
+                    conn.commit()
+                    st.rerun()
+                else:
+                    st.error("Unauthorized Admin Key.")
+
+# --- 6. The Elite AI Experience ---
+else:
+    with st.sidebar:
+        st.title(f"👤 {st.session_state.username}")
+        if st.session_state.username == "hasith12356":
+            st.success("👑 SYSTEM CREATOR")
+            if st.checkbox("📊 Master Analytics"):
+                st.subheader("User Statistics")
+                c.execute('SELECT username, word_count FROM userstable')
+                for u in c.fetchall():
+                    st.markdown(f"<div class='admin-box'>👤 {u[0]}<br>📝 {u[1]} Words</div>", unsafe_allow_html=True)
+                
+                st.subheader("Feedbacks")
+                c.execute('SELECT * FROM feedback_table')
+                for fb in c.fetchall():
+                    st.info(f"From {fb[0]}: {fb[1]} ({fb[2]})")
+
+        st.markdown("---")
+        ai_mode = st.radio("AI Intelligence Level", ["Normal (Fast)", "Pro (Detailed)"])
+        uploaded_img = st.file_uploader("🖼 Upload Image for Analysis", type=['jpg','png','jpeg'])
         
-        # Highlight the currently active chat button
-        is_active = (chat_id == st.session_state.current_chat_id)
-        if st.button(label, key=chat_id, use_container_width=True, type="secondary" if not is_active else "primary"):
-            st.session_state.current_chat_id = chat_id
+        st.subheader("🐍 Code Lab")
+        py_code = st.text_area("Live Python Interpreter", placeholder="print('Alpha Online')", height=100)
+        if st.button("▶ Execute"):
+            try:
+                old_stdout = sys.stdout
+                redirected_output = sys.stdout = StringIO()
+                exec(py_code)
+                sys.stdout = old_stdout
+                st.code(redirected_output.getvalue())
+            except Exception as e:
+                st.error(f"Logic Error: {e}")
+
+        st.markdown("---")
+        if st.button("🚪 Logout / Switch User"):
+            st.session_state.logged_in = False
             st.rerun()
 
-    st.markdown("---")
-    if st.button("🗑 Clear All History", use_container_width=True):
-        st.session_state.all_chats = {}
-        st.session_state.current_chat_id = None
-        start_new_chat()
-        st.rerun()
-
-# --- Main Interface ---
-st.title("💥 Alpha AI")
-st.info("Created by Hasith | Powered by Google Gemini 2.5")
-
-# Reference the history of the currently selected session
-current_chat_history = st.session_state.all_chats[st.session_state.current_chat_id]
-
-# Display current chat's conversation on screen
-for message in current_chat_history:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# --- Handle User Input ---
-if prompt := st.chat_input("Ask Alpha anything..."):
-    
-    # Append user prompt to current history
-    current_chat_history.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    # Generate Response using Gemini 2.5 Flash
+    # --- Gemini 2.0 Flash Implementation ---
     try:
-        with st.chat_message("assistant"):
-            with st.spinner("Alpha is thinking..."):
-                
-                # Format history for the Gemini API
-                gemini_history = [
-                    {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
-                    for m in current_chat_history
-                ]
-                
-                # Start chat with history (excluding the current prompt just added)
-                chat_session = model.start_chat(history=gemini_history[:-1])
-                response = chat_session.send_message(prompt)
-                
-                response_text = response.text
-                st.markdown(response_text)
-            
-        # Save assistant response to history
-        current_chat_history.append({"role": "assistant", "content": response_text})
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel("gemini-2.0-flash")
+    except:
+        st.error("API Key connection failed.")
+        st.stop()
+
+    st.title("💥 Alpha AI Dashboard")
+
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    if prompt := st.chat_input("Ask Alpha anything..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
         
-        # Rerun to update the sidebar title immediately
-        st.rerun()
-        
-    except Exception as e:
-        st.error(f"Error: {e}")
+        update_word_count(st.session_state.username, len(prompt.split()))
+
+        try:
+            with st.chat_message("assistant"):
+                with st.spinner("Alpha is processing..."):
+                    payload = [prompt]
+                    if uploaded_img:
+                        payload.append(Image.open(uploaded_img))
+                    
+                    # System Persona Logic
+                    sys_prompt = "Briefly." if ai_mode == "Normal (Fast)" else "Provide a detailed expert response."
+                    full_prompt = f"{sys_prompt} {prompt}"
+                    
+                    response = model.generate_content(payload)
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                    update_word_count(st.session_state.username, len(response.text.split()))
+        except Exception as e:
+            st.error(f"Processing Error: {e}")
+
+    # Footer Feedback
+    st.markdown("---")
+    with st.expander("📝 Submit Feedback to Hasith"):
+        fb_msg = st.text_input("Your Message:")
+        if st.button("Submit"):
+            c.execute('INSERT INTO feedback_table VALUES (?,?,?)', (st.session_state.username, fb_msg, datetime.now().strftime("%Y-%m-%d")))
+            conn.commit()
+            st.success("Thank you! Feedback saved.")
