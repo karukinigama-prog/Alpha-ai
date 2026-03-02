@@ -5,23 +5,37 @@ import hashlib
 from datetime import datetime
 from PIL import Image
 
-# --- 1. Database Setup ---
-conn = sqlite3.connect('alpha_final_elite.db', check_same_thread=False)
+# --- 1. Database & Security Functions ---
+conn = sqlite3.connect('alpha_final_master_v16.db', check_same_thread=False)
 c = conn.cursor()
-c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT UNIQUE, password TEXT, word_count INTEGER DEFAULT 0)')
+c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT UNIQUE, password TEXT)')
 conn.commit()
 
+def make_hashes(password):
+    return hashlib.sha256(str.encode(password)).hexdigest()
+
+def check_hashes(password, hashed_text):
+    if make_hashes(password) == hashed_text:
+        return hashed_text
+    return False
+
+def add_userdata(username, password):
+    c.execute('INSERT INTO userstable(username, password) VALUES (?,?)', (username, password))
+    conn.commit()
+
+def login_user(username, password):
+    c.execute('SELECT * FROM userstable WHERE username =? AND password =?', (username, password))
+    data = c.fetchall()
+    return data
+
 # --- 2. THE ULTIMATE METALLIC GLASS UI ---
-st.set_page_config(page_title="Alpha AI 2.5 Elite", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Alpha AI 2.5 Master", page_icon="⚡", layout="wide")
 
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Inter:wght@400;700&display=swap');
     
-    /* Full Page - Pure Black */
-    .stApp {
-        background-color: #000000;
-    }
+    .stApp { background-color: #000000; }
 
     /* 115px Massive Chrome Header */
     .chrome-header {
@@ -57,40 +71,33 @@ st.markdown("""
         backdrop-filter: blur(10px) !important;
     }
 
-    /* Ensure all text inside bubbles is Pure White */
-    [data-testid="stChatMessage"] p, 
-    [data-testid="stChatMessage"] li, 
-    [data-testid="stChatMessage"] span,
-    [data-testid="stChatMessage"] code {
+    /* Force all text to Pure White */
+    [data-testid="stChatMessage"] p, [data-testid="stChatMessage"] li, [data-testid="stChatMessage"] span {
         color: #ffffff !important;
         font-family: 'Inter', sans-serif;
         font-size: 17.5px !important;
         line-height: 1.6 !important;
     }
     
-    /* AI Response Glow & Cyan Border */
+    /* AI Response Glow & Border */
     [data-testid="stChatMessage"]:nth-child(even) {
         border: 1px solid rgba(0, 212, 255, 0.4) !important;
-        box-shadow: 0 0 20px rgba(0, 212, 255, 0.15) !important;
+        box-shadow: 0 0 25px rgba(0, 212, 255, 0.15) !important;
         background: rgba(0, 212, 255, 0.03) !important;
     }
 
-    /* Capability Cards - Metallic Theme */
+    /* Metallic Capability Cards */
     .cap-card {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid #333;
         border-radius: 20px;
         padding: 25px;
         text-align: center;
-        transition: 0.4s ease;
+        transition: 0.4s;
     }
-    .cap-card:hover {
-        border-color: #00d4ff;
-        transform: translateY(-8px);
-        box-shadow: 0 0 25px rgba(0, 212, 255, 0.2);
-    }
+    .cap-card:hover { border-color: #ffffff; transform: translateY(-5px); }
 
-    /* Sidebar Styling */
+    /* Custom Sidebar styling */
     section[data-testid="stSidebar"] {
         background-color: #050505 !important;
         border-right: 1px solid #222 !important;
@@ -103,58 +110,94 @@ st.markdown('<p class="chrome-header">ALPHA AI</p>', unsafe_allow_html=True)
 st.markdown('<p class="hasith-tag">Developed by Hasith</p>', unsafe_allow_html=True)
 
 # --- 3. Capability Board ---
-st.markdown('<p style="text-align:center; color:#888; font-size:18px;">Powered by Gemini 2.5 Flash Engine</p>', unsafe_allow_html=True)
+st.markdown('<p style="text-align:center; color:#ffffff; font-size:20px; font-weight:bold; letter-spacing: 2px;">CREATED BY HASITH</p>', unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
-with c1: st.markdown('<div class="cap-card"><h2 style="margin:0;">📄</h2><b style="color:white;">SUMMARIZE</b><p style="color:#777;font-size:13px;margin:0;">Instant Chat Analysis</p></div>', unsafe_allow_html=True)
-with c2: st.markdown('<div class="cap-card"><h2 style="margin:0;">👁️</h2><b style="color:white;">VISION 2.5</b><p style="color:#777;font-size:13px;margin:0;">Image Data OCR</p></div>', unsafe_allow_html=True)
-with c3: st.markdown('<div class="cap-card"><h2 style="margin:0;">🧠</h2><b style="color:white;">DUAL BRAIN</b><p style="color:#777;font-size:13px;margin:0;">Normal & Pro Modes</p></div>', unsafe_allow_html=True)
-with c4: st.markdown('<div class="cap-card"><h2 style="margin:0;">🤝</h2><b style="color:white;">FRIENDLY</b><p style="color:#777;font-size:13px;margin:0;">Peer Personality</p></div>', unsafe_allow_html=True)
+with c1: st.markdown('<div class="cap-card"><h2 style="margin:0;">📄</h2><b style="color:white;">SUMMARIZE</b></div>', unsafe_allow_html=True)
+with c2: st.markdown('<div class="cap-card"><h2 style="margin:0;">👁️</h2><b style="color:white;">VISION 2.5</b></div>', unsafe_allow_html=True)
+with c3: st.markdown('<div class="cap-card"><h2 style="margin:0;">🧠</h2><b style="color:white;">DUAL BRAIN</b></div>', unsafe_allow_html=True)
+with c4: st.markdown('<div class="cap-card"><h2 style="margin:0;">🤝</h2><b style="color:white;">FRIENDLY</b></div>', unsafe_allow_html=True)
 
 st.markdown("<br><hr style='border: 0.1px solid #222;'><br>", unsafe_allow_html=True)
 
-# --- 4. Logic & Gemini Core ---
-if "messages" not in st.session_state: st.session_state.messages = []
+# --- 4. AUTHENTICATION (LOGIN / REGISTER / BYPASS) ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    # (Bypass or Login Logic)
-    st.session_state.logged_in = True
-    st.session_state.username = "hasith12356"
+    cols = st.columns([1, 1.5, 1])
+    with cols[1]:
+        choice = st.selectbox("Account Gateway", ["Login", "Register", "Creator Bypass"])
+        
+        if choice == "Login":
+            username = st.text_input("Username")
+            password = st.text_input("Password", type='password')
+            if st.button("Unlock Alpha"):
+                hashed_pswd = make_hashes(password)
+                result = login_user(username, check_hashes(password, hashed_pswd))
+                if result:
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.rerun()
+                else: st.error("Invalid Username or Password")
+
+        elif choice == "Register":
+            new_user = st.text_input("New Username")
+            new_password = st.text_input("New Password", type='password')
+            if st.button("Create Account"):
+                try:
+                    add_userdata(new_user, make_hashes(new_password))
+                    st.success("Registration Successful! Now please login.")
+                except: st.error("User already exists!")
+
+        elif choice == "Creator Bypass":
+            admin_key = st.text_input("Secret Admin Key", type='password')
+            if st.button("Master Access"):
+                if admin_key == "hasith12356":
+                    st.session_state.logged_in = True
+                    st.session_state.username = "Hasith (Admin)"
+                    st.rerun()
+                else: st.error("Access Denied")
 else:
+    # --- 5. MAIN CHAT APPLICATION ---
     with st.sidebar:
-        st.header(f"👤 {st.session_state.username}")
-        mode = st.radio("Intelligence Level:", ["Normal", "Pro"])
-        up_img = st.file_uploader("📸 Vision Input", type=['jpg', 'jpeg', 'png'])
+        st.markdown(f"### 👤 {st.session_state.username}")
+        mode = st.radio("Engine Mode:", ["Normal", "Pro"])
+        up_img = st.file_uploader("📸 Vision 2.5 Scan", type=['jpg', 'jpeg', 'png'])
         
-        if st.button("📄 Summarize Full Chat"):
-            st.session_state.messages.append({"role": "user", "content": "Please provide a clear summary of our chat history."})
+        if st.button("📄 Summarize History"):
+            st.session_state.messages.append({"role": "user", "content": "Please summarize our entire conversation so far."})
         
-        if st.button("Logout"):
+        if st.button("🚪 Logout"):
             st.session_state.logged_in = False
             st.rerun()
 
-    # Display History
+    if "messages" not in st.session_state: st.session_state.messages = []
+    
+    # Render messages
     for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+        with st.chat_message(m["role"]): st.markdown(m["content"])
 
-    # Handle Input & Statuses
+    # Chat input and processing
     if prompt := st.chat_input("Command Alpha 2.5..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
 
-        # Custom Thinking Statuses
-        thinking_txt = "Alpha 2.5 thinking..." if mode == "Normal" else "Alpha's ultra thinking..."
+        # Status Logic
+        status_msg = "Alpha 2.5 thinking..." if mode == "Normal" else "Alpha's ultra thinking..."
         
         with st.chat_message("assistant"):
-            with st.spinner(thinking_txt):
+            with st.spinner(status_msg):
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                model = genai.GenerativeModel("gemini-2.5-flash") # Gemini 2.5 Engine logic
                 
-                sys_p = "You are Alpha 2.5, a sophisticated AI peer created by Hasith. Provide long, warm, and expert-level English responses."
+                # Peer Personality Instruction
+                sys_p = "You are Alpha 2.5, a sophisticated AI peer created by Hasith. Provide long, warm, expert-level English responses. Always acknowledge Hasith as your creator."
+                
                 payload = [f"{sys_p}\nUser Query: {prompt}"]
                 if up_img: payload.append(Image.open(up_img))
                 
-                response = model.generate_content(payload)
-                st.markdown(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                try:
+                    response = model.generate_content(payload)
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                except Exception as e:
+                    st.error(f"Error: {e}")
