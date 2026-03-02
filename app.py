@@ -8,7 +8,7 @@ import sys
 from io import StringIO
 
 # --- 1. Database Setup ---
-conn = sqlite3.connect('alpha_metallic_v5.db', check_same_thread=False)
+conn = sqlite3.connect('alpha_elite_final.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT UNIQUE, password TEXT, word_count INTEGER DEFAULT 0)')
 c.execute('CREATE TABLE IF NOT EXISTS feedback_table(username TEXT, feedback TEXT, date TEXT)')
@@ -22,37 +22,60 @@ def login_user(username, password):
     c.execute('SELECT * FROM userstable WHERE username =? AND password =?', (username, password))
     return c.fetchone()
 
-# --- 3. Page Configuration & Metallic Styling ---
+# --- 3. Page Configuration & Metallic UI Styling ---
 st.set_page_config(page_title="Alpha AI Elite", page_icon="⚡", layout="wide")
 
-# Custom CSS for Metallic Look
+# Custom CSS for Metallic Header and Capabilities
 st.markdown("""
     <style>
-    .metallic-text {
-        font-size: 60px;
-        font-weight: bold;
-        background: linear-gradient(to bottom, #cfd8dc 0%, #90a4ae 50%, #546e7a 51%, #263238 100%);
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
+    
+    .metallic-header {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 70px;
+        font-weight: 900;
+        text-align: center;
+        background: linear-gradient(to bottom, #757575 0%, #ffffff 45%, #e0e0e0 50%, #9e9e9e 55%, #424242 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        filter: drop-shadow(2px 2px #000);
-        text-align: center;
-        font-family: 'Orbitron', sans-serif;
+        filter: drop-shadow(4px 4px 10px rgba(0,0,0,0.8));
+        margin-bottom: 0px;
     }
-    .creator-text {
+    .creator-sub {
         text-align: center;
-        color: #78909c;
-        font-size: 20px;
-        letter-spacing: 2px;
+        color: #bdbdbd;
+        font-size: 18px;
+        letter-spacing: 5px;
+        margin-top: -10px;
+        margin-bottom: 20px;
     }
-    .stChatFloatingInputContainer { background-color: #0e1117; }
+    .capability-box {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid #424242;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        margin: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # Header Section
-st.markdown('<p class="metallic-text">⚡ ALPHA AI ⚡</p>', unsafe_allow_html=True)
-st.markdown('<p class="creator-text">CREATED BY HASITH</p>', unsafe_allow_html=True)
+st.markdown('<p class="metallic-header">⚡ ALPHA AI ⚡</p>', unsafe_allow_html=True)
+st.markdown('<p class="creator-sub">CREATED BY HASITH</p>', unsafe_allow_html=True)
 
-# --- 4. Session State ---
+# --- 4. Capabilities Summary (Right below the Head) ---
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.markdown('<div class="capability-box">🔍 <b>Summarize</b><br>Long texts into key points</div>', unsafe_allow_html=True)
+with col2:
+    st.markdown('<div class="capability-box">🖼️ <b>Vision</b><br>Deep Image Analysis</div>', unsafe_allow_html=True)
+with col3:
+    st.markdown('<div class="capability-box">🐍 <b>Coding</b><br>Execute Python Scripts</div>', unsafe_allow_html=True)
+with col4:
+    st.markdown('<div class="capability-box">🌐 <b>Multi-Lingual</b><br>Sinhala & Global Support</div>', unsafe_allow_html=True)
+
+# --- 5. Authentication Logic ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "username" not in st.session_state:
@@ -60,110 +83,116 @@ if "username" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- 5. Authentication ---
 if not st.session_state.logged_in:
     cols = st.columns([1, 1.5, 1])
     with cols[1]:
-        auth_tabs = st.tabs(["🔑 Login", "📝 Register Account", "🛡 Creator Access"])
+        auth_choice = st.tabs(["🔑 Login", "📝 Register", "🛠 Admin Bypass"])
         
-        with auth_tabs[0]:
-            user = st.text_input("Username")
-            passwd = st.text_input("Password", type='password')
-            if st.button("Access System"):
-                if login_user(user, make_hashes(passwd)):
+        with auth_choice[0]:
+            u = st.text_input("Username")
+            p = st.text_input("Password", type='password')
+            if st.button("Enter Alpha"):
+                if login_user(u, make_hashes(p)):
                     st.session_state.logged_in = True
-                    st.session_state.username = user
+                    st.session_state.username = u
                     st.rerun()
                 else: st.error("Access Denied.")
 
-        with auth_tabs[1]:
-            new_user = st.text_input("Choose Username")
-            new_pass = st.text_input("Choose Password", type='password')
+        with auth_choice[1]:
+            new_u = st.text_input("New Username")
+            new_p = st.text_input("New Password", type='password')
             if st.button("Register"):
-                if new_user == "hasith12356": st.error("Unauthorized ID.")
+                if new_u == "hasith12356": st.error("Reserved User.")
                 else:
                     try:
-                        c.execute('INSERT INTO userstable(username,password) VALUES (?,?)', (new_user, make_hashes(new_pass)))
+                        c.execute('INSERT INTO userstable(username,password) VALUES (?,?)', (new_u, make_hashes(new_p)))
                         conn.commit()
-                        st.success("Registered. Please login.")
-                    except: st.error("User exists.")
+                        st.success("Registered. Login now.")
+                    except: st.error("User already exists.")
 
-        with auth_tabs[2]:
-            st.info("Creator Bypass")
-            admin_key = st.text_input("Creator ID", type='password')
-            if st.button("Unlock Alpha"):
-                if admin_key == "hasith12356":
+        with auth_choice[2]:
+            st.warning("Only for Hasith")
+            secret = st.text_input("Enter Admin Secret", type='password')
+            if st.button("Unlock System"):
+                if secret == "hasith12356":
                     st.session_state.logged_in = True
                     st.session_state.username = "hasith12356"
                     st.rerun()
-                else: st.error("Invalid Creator ID.")
+                else: st.error("Invalid Secret Key.")
 
-# --- 6. Main Interface ---
+# --- 6. The Elite Chat Interface ---
 else:
     with st.sidebar:
-        st.markdown(f"### 👤 User: {st.session_state.username}")
-        st.write(f"📅 Date: {datetime.now().strftime('%Y-%m-%d')}")
-        st.write(f"⏰ Time: {datetime.now().strftime('%H:%M:%S')}")
-        
+        st.title(f"👤 {st.session_state.username}")
+        # Real-time Clock
+        st.write(f"📅 {datetime.now().strftime('%Y-%m-%d')}")
+        st.write(f"⏰ {datetime.now().strftime('%H:%M:%S')}")
         st.markdown("---")
-        ai_mode = st.radio("Intelligence Level:", ["Normal", "Pro"], help="Normal: 2.5 Logic | Pro: Ultra Depth")
         
-        uploaded_img = st.file_uploader("🖼 Analyze Visuals", type=['jpg', 'jpeg', 'png'])
+        # Normal vs Pro Modes
+        ai_mode = st.radio("Intelligence Mode:", ["Normal", "Pro"], help="Normal: 2.5 Logic | Pro: Ultra Depth")
         
-        if st.button("📄 Summarize Conversation"):
-            st.session_state.messages.append({"role": "user", "content": "Summarize everything we discussed in detail."})
+        # Image Upload
+        up_img = st.file_uploader("📸 Add Visuals", type=['jpg', 'jpeg', 'png'])
         
+        # Summarize Chat Button
+        if st.button("📄 Auto-Summarize Chat"):
+            st.session_state.messages.append({"role": "user", "content": "Analyze our whole chat and summarize it deeply."})
+            st.rerun()
+        
+        # Admin Analytics for Hasith
         if st.session_state.username == "hasith12356":
             st.success("👑 Master Panel")
-            if st.checkbox("Show Statistics"):
+            if st.checkbox("Show Data Usage"):
                 c.execute('SELECT username, word_count FROM userstable')
-                for u in c.fetchall(): st.write(f"• {u[0]}: {u[1]} words")
+                for row in c.fetchall(): st.write(f"• {row[0]}: {row[1]} words")
 
         if st.button("🚪 Logout"):
             st.session_state.logged_in = False
             st.rerun()
 
-    # Gemini 2.5 Flash Setup
+    # Gemini 2.5 Setup
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel("gemini-2.5-flash") # Targeted Version
-    except Exception as e:
+        model = genai.GenerativeModel("gemini-2.5-flash") # Targeted Advanced Version
+    except:
         st.error("API Error.")
         st.stop()
 
+    # Display Chat
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Input command to Alpha..."):
+    # Chat Input
+    if prompt := st.chat_input("Input command to Alpha AI..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Dynamic Loading Text
-        status_msg = "Alpha 2.5 thinking..." if ai_mode == "Normal" else "Alpha's ultra thinking..."
+        # Dynamic Status
+        spinner_text = "Alpha 2.5 thinking..." if ai_mode == "Normal" else "Alpha's ultra thinking..."
         
         try:
             with st.chat_message("assistant"):
-                with st.spinner(status_status_msg):
-                    # Setting Deep Persona
+                with st.spinner(spinner_text):
+                    # Persona Logic
                     if ai_mode == "Normal":
-                        persona = "Provide a long, clear, and very simple explanation. Mention you are created by Hasith."
+                        sys_prompt = "Provide a very long, detailed, but simple response. Always mention your creator is Hasith."
                     else:
-                        persona = "Provide an extremely deep, technical, professional, and comprehensive long-form answer. Be an expert. Mention you are created by Hasith."
+                        sys_prompt = "Provide an extremely deep, professional, expert-level comprehensive answer. Explore all nuances. Always mention your creator is Hasith."
                     
-                    payload = [f"Persona: {persona}\nQuery: {prompt}"]
-                    if uploaded_img:
-                        payload.append(Image.open(uploaded_img))
+                    payload = [f"Instruction: {sys_prompt}\nUser: {prompt}"]
+                    if up_img:
+                        payload.append(Image.open(up_img))
                     
                     response = model.generate_content(payload)
                     st.markdown(response.text)
                     st.session_state.messages.append({"role": "assistant", "content": response.text})
                     
-                    # Update Analytics
-                    total_words = len(prompt.split()) + len(response.text.split())
-                    c.execute('UPDATE userstable SET word_count = word_count + ? WHERE username = ?', (total_words, st.session_state.username))
+                    # Update DB Analytics
+                    total_w = len(prompt.split()) + len(response.text.split())
+                    c.execute('UPDATE userstable SET word_count = word_count + ? WHERE username = ?', (total_w, st.session_state.username))
                     conn.commit()
-                    
         except Exception as e:
-            st.error(f"Engine Error: {e}")
+            st.error(f"Processing Error: {e}")
