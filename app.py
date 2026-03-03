@@ -4,8 +4,7 @@ import sqlite3
 import hashlib
 from datetime import datetime
 from PIL import Image
-import sys
-from io import StringIO
+import time
 
 # --- 1. Database Setup ---
 conn = sqlite3.connect('alpha_elite_final.db', check_same_thread=False)
@@ -25,7 +24,6 @@ def login_user(username, password):
 # --- 3. Page Configuration & Metallic UI Styling ---
 st.set_page_config(page_title="Alpha AI Elite", page_icon="⚡", layout="wide")
 
-# Custom CSS for Metallic Header and Capabilities
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
@@ -64,7 +62,7 @@ st.markdown("""
 st.markdown('<p class="metallic-header">⚡ ALPHA AI ⚡</p>', unsafe_allow_html=True)
 st.markdown('<p class="creator-sub">CREATED BY HASITH</p>', unsafe_allow_html=True)
 
-# --- 4. Capabilities Summary (Right below the Head) ---
+# --- 4. Capabilities Summary ---
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.markdown('<div class="capability-box">🔍 <b>Summarize</b><br>Long texts into key points</div>', unsafe_allow_html=True)
@@ -73,7 +71,7 @@ with col2:
 with col3:
     st.markdown('<div class="capability-box">🐍 <b>Coding</b><br>Execute Python Scripts</div>', unsafe_allow_html=True)
 with col4:
-    st.markdown('<div class="capability-box">🌐 <b>Multi-Lingual</b><br>Sinhala & Global Support</div>', unsafe_allow_html=True)
+    st.markdown('<div class="capability-box">🌐 <b>Multi-Lingual</b><br>Global Support</div>', unsafe_allow_html=True)
 
 # --- 5. Authentication Logic ---
 if "logged_in" not in st.session_state:
@@ -124,40 +122,18 @@ if not st.session_state.logged_in:
 else:
     with st.sidebar:
         st.title(f"👤 {st.session_state.username}")
-        # Real-time Clock
         st.write(f"📅 {datetime.now().strftime('%Y-%m-%d')}")
-        st.write(f"⏰ {datetime.now().strftime('%H:%M:%S')}")
         st.markdown("---")
-        
-        # Normal vs Pro Modes
-        ai_mode = st.radio("Intelligence Mode:", ["Normal", "Pro"], help="Normal: 2.5 Logic | Pro: Ultra Depth")
-        
-        # Image Upload
+        ai_mode = st.radio("Intelligence Mode:", ["Normal", "Pro"])
         up_img = st.file_uploader("📸 Add Visuals", type=['jpg', 'jpeg', 'png'])
         
-        # Summarize Chat Button
         if st.button("📄 Auto-Summarize Chat"):
             st.session_state.messages.append({"role": "user", "content": "Analyze our whole chat and summarize it deeply."})
             st.rerun()
         
-        # Admin Analytics for Hasith
-        if st.session_state.username == "hasith12356":
-            st.success("👑 Master Panel")
-            if st.checkbox("Show Data Usage"):
-                c.execute('SELECT username, word_count FROM userstable')
-                for row in c.fetchall(): st.write(f"• {row[0]}: {row[1]} words")
-
         if st.button("🚪 Logout"):
             st.session_state.logged_in = False
             st.rerun()
-
-    # Gemini 2.5 Setup
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel("gemini-2.5-flash") # Targeted Advanced Version
-    except:
-        st.error("API Error.")
-        st.stop()
 
     # Display Chat
     for msg in st.session_state.messages:
@@ -170,29 +146,36 @@ else:
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Dynamic Status
-        spinner_text = "Alpha 2.5 thinking..." if ai_mode == "Normal" else "Alpha's ultra thinking..."
-        
-        try:
-            with st.chat_message("assistant"):
-                with st.spinner(spinner_text):
-                    # Persona Logic
-                    if ai_mode == "Normal":
-                        sys_prompt = "Provide a very long, detailed, but simple response. Always mention your creator is Hasith."
-                    else:
-                        sys_prompt = "Provide an extremely deep, professional, expert-level comprehensive answer. Explore all nuances. Always mention your creator is Hasith."
+        with st.chat_message("assistant"):
+            spinner_text = "Alpha 2.5 thinking..." if ai_mode == "Normal" else "Alpha's ultra thinking..."
+            with st.spinner(spinner_text):
+                try:
+                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                    model = genai.GenerativeModel("gemini-1.5-flash")
                     
-                    payload = [f"Instruction: {sys_prompt}\nUser: {prompt}"]
-                    if up_img:
-                        payload.append(Image.open(up_img))
+                    sys_prompt = "Provide a detailed response. Always mention your creator is Hasith."
+                    payload = [f"{sys_prompt}\nUser: {prompt}"]
+                    if up_img: payload.append(Image.open(up_img))
                     
-                    response = model.generate_content(payload)
-                    st.markdown(response.text)
-                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                    # Streaming the Response
+                    response = model.generate_content(payload, stream=True)
                     
-                    # Update DB Analytics
-                    total_w = len(prompt.split()) + len(response.text.split())
+                    full_response = ""
+                    # Placeholder for the typewriter effect
+                    message_placeholder = st.empty()
+                    
+                    for chunk in response:
+                        full_response += chunk.text
+                        # Displaying text without the flashing cursor line
+                        message_placeholder.markdown(full_response)
+                        time.sleep(0.01)
+                    
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+                    
+                    # Update Stats
+                    total_w = len(prompt.split()) + len(full_response.split())
                     c.execute('UPDATE userstable SET word_count = word_count + ? WHERE username = ?', (total_w, st.session_state.username))
                     conn.commit()
-        except Exception as e:
-            st.error(f"Processing Error: {e}")
+
+                except Exception as e:
+                    st.error(f"Error: {e}")
