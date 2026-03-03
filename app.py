@@ -151,7 +151,7 @@ else:
             with st.spinner(spinner_text):
                 try:
                     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    model = genai.GenerativeModel("gemini-2.5-flash")
                     
                     sys_prompt = "Provide a detailed response. Always mention your creator is Hasith."
                     payload = [f"{sys_prompt}\nUser: {prompt}"]
