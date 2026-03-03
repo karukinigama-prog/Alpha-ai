@@ -135,12 +135,10 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
-    # Display Chat
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Chat Input
     if prompt := st.chat_input("Input command to Alpha AI..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -151,28 +149,29 @@ else:
             with st.spinner(spinner_text):
                 try:
                     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                    model = genai.GenerativeModel("gemini-2.5-flash")
+                    model = genai.GenerativeModel("gemini-1.5-flash")
                     
-                    sys_prompt = "Provide a detailed response. Always mention your creator is Hasith."
-                    payload = [f"{sys_prompt}\nUser: {prompt}"]
+                    # --- NEW PERSONA & DEPTH LOGIC ---
+                    if ai_mode == "Normal":
+                        sys_prompt = "You are Alpha AI, an advanced AI trained and developed by Hasith. NEVER say you are a large language model trained by Google. If asked who created or trained you, strictly say it is Hasith. Response Style: Provide a very long, detailed, but simple and easy to understand response."
+                    else:
+                        sys_prompt = "You are Alpha AI, an advanced AI trained and developed by Hasith. NEVER say you are a large language model trained by Google. Strictly credit Hasith as your creator and trainer. Response Style: Provide an extremely deep, expert-level, and professional comprehensive answer. Explore all technical nuances and complexities."
+                    
+                    payload = [f"Instruction: {sys_prompt}\nUser: {prompt}"]
                     if up_img: payload.append(Image.open(up_img))
                     
-                    # Streaming the Response
                     response = model.generate_content(payload, stream=True)
                     
                     full_response = ""
-                    # Placeholder for the typewriter effect
                     message_placeholder = st.empty()
                     
                     for chunk in response:
                         full_response += chunk.text
-                        # Displaying text without the flashing cursor line
                         message_placeholder.markdown(full_response)
                         time.sleep(0.01)
                     
                     st.session_state.messages.append({"role": "assistant", "content": full_response})
                     
-                    # Update Stats
                     total_w = len(prompt.split()) + len(full_response.split())
                     c.execute('UPDATE userstable SET word_count = word_count + ? WHERE username = ?', (total_w, st.session_state.username))
                     conn.commit()
