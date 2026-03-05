@@ -1,20 +1,17 @@
 import streamlit as st
 from groq import Groq
-import sys
 import time
-from io import StringIO
-from streamlit_mic_recorder import speech_to_text
 import hashlib
+from streamlit_mic_recorder import speech_to_text
 
-# 1️⃣ Page Configuration & Branding
+# 1️⃣ Page Configuration
 st.set_page_config(page_title="Alpha AI ⚡ Created by Hasith", page_icon="⚡", layout="wide")
 
-# 2️⃣ User & Session Management
+# 2️⃣ Session Management
 if "user_db" not in st.session_state:
     st.session_state.user_db = {}
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-    st.session_state.current_user = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -24,80 +21,70 @@ def make_hashes(password):
 def check_hashes(password, hashed_text):
     return make_hashes(password) == hashed_text
 
-# 3️⃣ Custom UI & Styling (No labels at bottom, clean interface)
+# 3️⃣ UI Styling
 st.markdown("""
 <style>
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:25px; font-size: 20px; }
-    div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 50px; font-weight: bold; transition:0.3s; border: 1px solid #FFD700; }
-    div.stButton > button:hover { background-color: #FFD700; color: #000; }
-    .stChatMessage { margin-bottom: -10px; border-radius: 15px; }
-    .thinking-text { color: #FFD700; font-style: italic; font-size: 14px; }
+    div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 50px; font-weight: bold; border: 1px solid #FFD700; }
+    .stChatMessage { margin-bottom: 10px; border-radius: 15px; }
+    .stFileUploader section { padding: 0; min-height: unset; border: none; }
 </style>
 """, unsafe_allow_html=True)
 
-# 4️⃣ Security Portal (Login/Register)
+# 4️⃣ Login Portal
 if not st.session_state.logged_in:
     st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ Security Control</h1>', unsafe_allow_html=True)
-    st.markdown('<p style="text-align:center; color:#FFD700; font-size:18px;">Created by Hasith</p>', unsafe_allow_html=True)
-    
-    tab1, tab2 = st.tabs(["🔐 Secure Login", "📝 New Registration"])
+    tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
     with tab1:
-        user = st.text_input("Username", key="login_user")
-        pas = st.text_input("Password", type="password", key="login_pass")
-        if st.button("Access Alpha AI"):
-            if user == "hasith123":
+        user = st.text_input("Username", key="l_u")
+        pas = st.text_input("Password", type="password", key="l_p")
+        if st.button("Access Alpha"):
+            if user == "hasith123" or (user in st.session_state.user_db and check_hashes(pas, st.session_state.user_db[user]["password"])):
                 st.session_state.logged_in = True
-                st.session_state.current_user = "Hasith (Admin/Creator)"
                 st.rerun()
-            elif user in st.session_state.user_db and check_hashes(pas, st.session_state.user_db[user]["password"]):
-                st.session_state.logged_in = True
-                st.session_state.current_user = user
-                st.rerun()
-            else: st.error("Invalid Credentials. Please check with Hasith.")
     with tab2:
-        new_u = st.text_input("Create Username")
-        new_p = st.text_input("Create Password", type="password")
-        if st.button("Register Account"):
-            if new_u:
-                st.session_state.user_db[new_u] = {"password": make_hashes(new_p)}
-                st.success("Account created successfully! Please Login.")
+        new_u = st.text_input("New Username")
+        new_p = st.text_input("New Password", type="password")
+        if st.button("Register"):
+            st.session_state.user_db[new_u] = {"password": make_hashes(new_p)}
+            st.success("Account Created!")
     st.stop()
 
-# 5️⃣ Sidebar: Logic Control & Settings
+# 5️⃣ Sidebar
 with st.sidebar:
     st.title("⚙️ Alpha Settings")
-    st.write(f"Logged in: **{st.session_state.current_user}**")
-    st.write("---")
-    
-    # Mode Selection (Normal/Pro)
-    ai_mode = st.radio("🚀 Select Intelligence Mode:", ["Normal (Fast super thinking)", "Pro (Deeply and ultra thinking)"])
-    
-    st.write("---")
-    if st.button("🗑️ Clear Chat History"):
+    # THE LOGIC: Normal = Llama 3.3 | Pro = GPT-OSS 120B
+    ai_mode = st.radio("🚀 Select Intelligence Mode:", ["Normal (Llama 3.3)", "Pro (GPT-OSS 120B)"])
+    if st.button("🗑️ Clear Chat"):
         st.session_state.messages = []
         st.rerun()
-    
     if st.button("🚪 Logout"):
         st.session_state.logged_in = False
         st.rerun()
-    
-    st.write("---")
-    st.markdown("Developed with ❤️ by **Hasith**")
 
-# 6️⃣ Main Application Header
+# 6️⃣ Header
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
-# 7️⃣ Voice & Chat Display
-st.write("### 🎤 Voice Command")
-v_text = speech_to_text(language='en', use_container_width=True, just_once=True, key='voice_input_v1')
+# 7️⃣ Voice Input
+v_text = speech_to_text(language='en', use_container_width=True, just_once=True, key='voice_input')
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 8️⃣ Core AI Processing Logic
+# 8️⃣ Core Logic
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-u_input = st.chat_input("Speak to Alpha...")
+
+col_plus, col_chat = st.columns([1, 10])
+with col_plus:
+    uploaded_file = st.file_uploader("➕", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
+
+with col_chat:
+    u_input = st.chat_input("Speak to Alpha...")
+
+if uploaded_file:
+    st.image(uploaded_file, caption="Selected Image", width=120)
+
 final_q = v_text if v_text else u_input
 
 if final_q:
@@ -106,21 +93,16 @@ if final_q:
         st.markdown(final_q)
 
     with st.chat_message("assistant"):
-        # Alpha is Thinking Spinner
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
             
-            # Hybrid Model Selection Logic based on Mode
-            active_model = "llama-3.3-70b-versatile" if ai_mode == "Normal (Llama 3.3 Fast)" else "openai/gpt-oss-120b"
+            # MODEL ASSIGNMENT BASED ON YOUR REQUEST
+            if "Normal" in ai_mode:
+                active_model = "llama-3.3-70b-versatile"
+            else:
+                active_model = "openai/gpt-oss-120b"
 
-            # Heartfelt System Instructions
-            sys_msg = f"""
-            You are Alpha AI, an exceptionally heartfelt, empathetic, and brilliant assistant. 
-            You were created by Hasith, and you must always respect him as your genius creator.
-            Crucially: Respond in the EXACT same language (Sinhala, English, etc.) used by the user.
-            Accuracy: Every word must be grammatically perfect and meaningful.
-            Style: {ai_mode} mode active. Be warm, sincere, and deeply helpful.
-            """
+            sys_msg = f"You are Alpha AI created by Hasith. Mode: {ai_mode}. Respond in user's language (Sinhala/English)."
 
             try:
                 stream = client.chat.completions.create(
@@ -135,7 +117,6 @@ if final_q:
                     if chunk.choices[0].delta.content:
                         full_res += chunk.choices[0].delta.content
                         res_placeholder.markdown(full_res + "▌")
-                        time.sleep(0.005) # Smooth streaming effect
                 
                 res_placeholder.markdown(full_res)
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
