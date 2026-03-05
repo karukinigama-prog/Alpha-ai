@@ -5,8 +5,9 @@ import time
 from io import StringIO
 from streamlit_mic_recorder import speech_to_text
 import hashlib
+import base64
 
-# 1️⃣ Page Configuration & Branding
+# 1️⃣ Page Configuration
 st.set_page_config(page_title="Alpha AI ⚡ Created by Hasith", page_icon="⚡", layout="wide")
 
 # 2️⃣ User & Session Management
@@ -31,11 +32,10 @@ st.markdown("""
     div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 50px; font-weight: bold; transition:0.3s; border: 1px solid #FFD700; }
     div.stButton > button:hover { background-color: #FFD700; color: #000; }
     .stChatMessage { margin-bottom: -10px; border-radius: 15px; }
-    .thinking-text { color: #FFD700; font-style: italic; font-size: 14px; }
 </style>
 """, unsafe_allow_html=True)
 
-# 4️⃣ Security Portal (Login/Register)
+# 4️⃣ Security Portal
 if not st.session_state.logged_in:
     st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ Security Control</h1>', unsafe_allow_html=True)
     st.markdown('<p style="text-align:center; color:#FFD700; font-size:18px;">Created by Hasith</p>', unsafe_allow_html=True)
@@ -53,62 +53,57 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.current_user = user
                 st.rerun()
-            else: st.error("Invalid Credentials. Please check with Hasith.")
+            else: st.error("Invalid Credentials.")
     with tab2:
         new_u = st.text_input("Create Username")
         new_p = st.text_input("Create Password", type="password")
         if st.button("Register Account"):
             if new_u:
                 st.session_state.user_db[new_u] = {"password": make_hashes(new_p)}
-                st.success("Account created successfully! Please Login.")
+                st.success("Account created!")
     st.stop()
 
-# 5️⃣ Sidebar: User Profile & Settings
+# 5️⃣ Sidebar
 with st.sidebar:
     st.title("⚙️ Alpha Settings")
-    
-    # Profile Picture Section
     st.subheader("👤 User Profile")
-    prof_pic = st.file_uploader("Upload Profile Picture", type=['png', 'jpg', 'jpeg'], key="sidebar_pic")
+    prof_pic = st.file_uploader("Upload Profile Picture", type=['png', 'jpg', 'jpeg'])
     if prof_pic:
         st.image(prof_pic, width=100)
     
-    # Only showing the logged-in user and creator
     st.write(f"Logged in: **{st.session_state.current_user}**")
-    if st.session_state.current_user != "Hasith (Admin/Creator)":
-        st.caption("Creator: Hasith")
-        
     st.write("---")
     
-    # Mode Selection
     ai_mode = st.radio("🚀 Select Intelligence Mode:", ["Normal (Fast super thinking)", "Pro (Deeply and ultra thinking)"])
     
-    st.write("---")
-    if st.button("🗑️ Clear Chat History"):
+    if st.button("🗑️ Clear Chat"):
         st.session_state.messages = []
         st.rerun()
-    
     if st.button("🚪 Logout"):
         st.session_state.logged_in = False
         st.rerun()
-    
-    st.write("---")
-    st.markdown("Developed with ❤️ by **Hasith**")
 
-# 6️⃣ Main Application Header
+# 6️⃣ Header
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
-# 7️⃣ Voice & Chat Display
-st.write("### 🎤 Voice Command")
-v_text = speech_to_text(language='en', use_container_width=True, just_once=True, key='voice_input_v1')
+# 7️⃣ Voice command
+v_text = speech_to_text(language='en', use_container_width=True, just_once=True, key='voice_v1')
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 8️⃣ Core AI Processing Logic
+# 8️⃣ Core Logic (GPT-OSS for Text | Llama for Images)
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-u_input = st.chat_input("Speak to Alpha...")
+
+# Layout for "+" and Chat
+col_plus, col_chat = st.columns([1, 10])
+with col_plus:
+    chat_image = st.file_uploader("➕", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
+
+with col_chat:
+    u_input = st.chat_input("Speak to Alpha...")
+
 final_q = v_text if v_text else u_input
 
 if final_q:
@@ -120,17 +115,21 @@ if final_q:
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
             
-            # Hybrid Model Selection Logic based on Mode
-            active_model = "llama-3.3-70b-versatile" if ai_mode == "Normal (Fast super thinking)" else "openai/gpt-oss-120b"
+            # --- MODEL SELECTION LOGIC ---
+            if chat_image:
+                # Use Llama Vision for images
+                active_model = "llama-3.2-11b-vision-preview"
+                st.image(chat_image, width=200)
+            elif ai_mode == "Normal (Fast super thinking)":
+                active_model = "llama-3.3-70b-versatile"
+            else:
+                # PRO MODE PRIMARY: GPT-OSS 120B
+                active_model = "openai/gpt-oss-120b"
 
-            sys_msg = f"""
-            You are Alpha AI, an exceptionally heartfelt assistant. 
-            Created by Hasith. Respect Hasith as the genius creator.
-            Respond in the EXACT same language (Sinhala, English, etc.) used by the user.
-            Style: {ai_mode} mode active.
-            """
+            sys_msg = f"You are Alpha AI created by Hasith. Mode: {ai_mode}. Respond in user's language."
 
             try:
+                # Text-based stream
                 stream = client.chat.completions.create(
                     model=active_model,
                     messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
@@ -149,4 +148,4 @@ if final_q:
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
                 
             except Exception as e:
-                st.error(f"Alpha encountered an error: {e}")
+                st.error(f"Alpha Error: {e}")
