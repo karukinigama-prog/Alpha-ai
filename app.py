@@ -141,4 +141,4 @@ if final_q:
                 st.session_state.messages.append({"role": "assistant", "content": full_res})
                 
             except Exception as e:
-                st.error(f"Alpha encountered an error: {
+                st.error(f"Alpha encountered an error: {e}")
