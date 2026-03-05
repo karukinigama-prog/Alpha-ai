@@ -70,7 +70,7 @@ with st.sidebar:
     st.write("---")
     
     # Mode Selection (Normal/Pro)
-    ai_mode = st.radio("🚀 Select Intelligence Mode:", ["Normal (Fast super thinking)", "Pro (Deeply and ulta thinking)"])
+    ai_mode = st.radio("🚀 Select Intelligence Mode:", ["Normal (Fast super thinking)", "Pro (Deeply and ultra thinking)"])
     
     st.write("---")
     if st.button("🗑️ Clear Chat History"):
