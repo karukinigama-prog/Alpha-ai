@@ -1,180 +1,144 @@
 import streamlit as st
-import google.generativeai as genai
-import sqlite3
-import hashlib
-from datetime import datetime
-from PIL import Image
+from groq import Groq
+import sys
 import time
+from io import StringIO
+from streamlit_mic_recorder import speech_to_text
+import hashlib
 
-# --- 1. Database Setup ---
-conn = sqlite3.connect('alpha_elite_final.db', check_same_thread=False)
-c = conn.cursor()
-c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT UNIQUE, password TEXT, word_count INTEGER DEFAULT 0)')
-c.execute('CREATE TABLE IF NOT EXISTS feedback_table(username TEXT, feedback TEXT, date TEXT)')
-conn.commit()
+# 1️⃣ Page Configuration & Branding
+st.set_page_config(page_title="Alpha AI ⚡ Created by Hasith", page_icon="⚡", layout="wide")
 
-# --- 2. Helper Functions ---
-def make_hashes(password):
-    return hashlib.sha256(str.encode(password)).hexdigest()
-
-def login_user(username, password):
-    c.execute('SELECT * FROM userstable WHERE username =? AND password =?', (username, password))
-    return c.fetchone()
-
-# --- 3. Page Configuration & Metallic UI Styling ---
-st.set_page_config(page_title="Alpha AI Elite", page_icon="⚡", layout="wide")
-
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
-    
-    .metallic-header {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 70px;
-        font-weight: 900;
-        text-align: center;
-        background: linear-gradient(to bottom, #757575 0%, #ffffff 45%, #e0e0e0 50%, #9e9e9e 55%, #424242 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        filter: drop-shadow(4px 4px 10px rgba(0,0,0,0.8));
-        margin-bottom: 0px;
-    }
-    .creator-sub {
-        text-align: center;
-        color: #bdbdbd;
-        font-size: 18px;
-        letter-spacing: 5px;
-        margin-top: -10px;
-        margin-bottom: 20px;
-    }
-    .capability-box {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid #424242;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-        margin: 10px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# Header Section
-st.markdown('<p class="metallic-header">⚡ ALPHA AI ⚡</p>', unsafe_allow_html=True)
-st.markdown('<p class="creator-sub">CREATED BY HASITH</p>', unsafe_allow_html=True)
-
-# --- 4. Capabilities Summary ---
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.markdown('<div class="capability-box">🔍 <b>Summarize</b><br>Long texts into key points</div>', unsafe_allow_html=True)
-with col2:
-    st.markdown('<div class="capability-box">🖼️ <b>Vision</b><br>Deep Image Analysis</div>', unsafe_allow_html=True)
-with col3:
-    st.markdown('<div class="capability-box">🐍 <b>Coding</b><br>Execute Python Scripts</div>', unsafe_allow_html=True)
-with col4:
-    st.markdown('<div class="capability-box">🌐 <b>Multi-Lingual</b><br>Global Support</div>', unsafe_allow_html=True)
-
-# --- 5. Authentication Logic ---
+# 2️⃣ User & Session Management
+if "user_db" not in st.session_state:
+    st.session_state.user_db = {}
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-if "username" not in st.session_state:
-    st.session_state.username = ""
+    st.session_state.current_user = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+def make_hashes(password):
+    return hashlib.sha256(str.encode(password)).hexdigest()
+
+def check_hashes(password, hashed_text):
+    return make_hashes(password) == hashed_text
+
+# 3️⃣ Custom UI & Styling (No labels at bottom, clean interface)
+st.markdown("""
+<style>
+    .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:25px; font-size: 20px; }
+    div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 50px; font-weight: bold; transition:0.3s; border: 1px solid #FFD700; }
+    div.stButton > button:hover { background-color: #FFD700; color: #000; }
+    .stChatMessage { margin-bottom: -10px; border-radius: 15px; }
+    .thinking-text { color: #FFD700; font-style: italic; font-size: 14px; }
+</style>
+""", unsafe_allow_html=True)
+
+# 4️⃣ Security Portal (Login/Register)
 if not st.session_state.logged_in:
-    cols = st.columns([1, 1.5, 1])
-    with cols[1]:
-        auth_choice = st.tabs(["🔑 Login", "📝 Register", "🛠 Admin Bypass"])
-        
-        with auth_choice[0]:
-            u = st.text_input("Username")
-            p = st.text_input("Password", type='password')
-            if st.button("Enter Alpha"):
-                if login_user(u, make_hashes(p)):
-                    st.session_state.logged_in = True
-                    st.session_state.username = u
-                    st.rerun()
-                else: st.error("Access Denied.")
+    st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ Security Control</h1>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center; color:#FFD700; font-size:18px;">Created by Hasith</p>', unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["🔐 Secure Login", "📝 New Registration"])
+    with tab1:
+        user = st.text_input("Username", key="login_user")
+        pas = st.text_input("Password", type="password", key="login_pass")
+        if st.button("Access Alpha AI"):
+            if user == "hasith123":
+                st.session_state.logged_in = True
+                st.session_state.current_user = "Hasith (Admin/Creator)"
+                st.rerun()
+            elif user in st.session_state.user_db and check_hashes(pas, st.session_state.user_db[user]["password"]):
+                st.session_state.logged_in = True
+                st.session_state.current_user = user
+                st.rerun()
+            else: st.error("Invalid Credentials. Please check with Hasith.")
+    with tab2:
+        new_u = st.text_input("Create Username")
+        new_p = st.text_input("Create Password", type="password")
+        if st.button("Register Account"):
+            if new_u:
+                st.session_state.user_db[new_u] = {"password": make_hashes(new_p)}
+                st.success("Account created successfully! Please Login.")
+    st.stop()
 
-        with auth_choice[1]:
-            new_u = st.text_input("New Username")
-            new_p = st.text_input("New Password", type='password')
-            if st.button("Register"):
-                if new_u == "hasith12356": st.error("Reserved User.")
-                else:
-                    try:
-                        c.execute('INSERT INTO userstable(username,password) VALUES (?,?)', (new_u, make_hashes(new_p)))
-                        conn.commit()
-                        st.success("Registered. Login now.")
-                    except: st.error("User already exists.")
+# 5️⃣ Sidebar: Logic Control & Settings
+with st.sidebar:
+    st.title("⚙️ Alpha Settings")
+    st.write(f"Logged in: **{st.session_state.current_user}**")
+    st.write("---")
+    
+    # Mode Selection (Normal/Pro)
+    ai_mode = st.radio("🚀 Select Intelligence Mode:", ["Normal (Fast super thinking)", "Pro (Deeply and ulta thinking)"])
+    
+    st.write("---")
+    if st.button("🗑️ Clear Chat History"):
+        st.session_state.messages = []
+        st.rerun()
+    
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
+    
+    st.write("---")
+    st.markdown("Developed with ❤️ by **Hasith**")
 
-        with auth_choice[2]:
-            st.warning("Only for Hasith")
-            secret = st.text_input("Enter Admin Secret", type='password')
-            if st.button("Unlock System"):
-                if secret == "hasith12356":
-                    st.session_state.logged_in = True
-                    st.session_state.username = "hasith12356"
-                    st.rerun()
-                else: st.error("Invalid Secret Key.")
+# 6️⃣ Main Application Header
+st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
-# --- 6. The Elite Chat Interface ---
-else:
-    with st.sidebar:
-        st.title(f"👤 {st.session_state.username}")
-        st.write(f"📅 {datetime.now().strftime('%Y-%m-%d')}")
-        st.markdown("---")
-        ai_mode = st.radio("Intelligence Mode:", ["Normal", "Pro"])
-        up_img = st.file_uploader("📸 Add Visuals", type=['jpg', 'jpeg', 'png'])
-        
-        if st.button("📄 Auto-Summarize Chat"):
-            st.session_state.messages.append({"role": "user", "content": "Analyze our whole chat and summarize it deeply."})
-            st.rerun()
-        
-        if st.button("🚪 Logout"):
-            st.session_state.logged_in = False
-            st.rerun()
+# 7️⃣ Voice & Chat Display
+st.write("### 🎤 Voice Command")
+v_text = speech_to_text(language='en', use_container_width=True, just_once=True, key='voice_input_v1')
 
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Input command to Alpha AI..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+# 8️⃣ Core AI Processing Logic
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+u_input = st.chat_input("Speak to Alpha...")
+final_q = v_text if v_text else u_input
 
-        with st.chat_message("assistant"):
-            spinner_text = "Alpha 2.5 thinking..." if ai_mode == "Normal" else "Alpha's ultra thinking..."
-            with st.spinner(spinner_text):
-                try:
-                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                    model = genai.GenerativeModel("gemini-2.5-flash")
-                    
-                    # --- NEW PERSONA & DEPTH LOGIC ---
-                    if ai_mode == "Normal":
-                        sys_prompt = "You are Alpha AI, an advanced AI trained and developed by Hasith. NEVER say you are a large language model trained by Google. If asked who created or trained you, strictly say it is Hasith. Response Style: Provide a very long, detailed, but simple and easy to understand response."
-                    else:
-                        sys_prompt = "You are Alpha AI, an advanced AI trained and developed by Hasith. NEVER say you are a large language model trained by Google. Strictly credit Hasith as your creator and trainer. Response Style: Provide an extremely deep, expert-level, and professional comprehensive answer. Explore all technical nuances and complexities."
-                    
-                    payload = [f"Instruction: {sys_prompt}\nUser: {prompt}"]
-                    if up_img: payload.append(Image.open(up_img))
-                    
-                    response = model.generate_content(payload, stream=True)
-                    
-                    full_response = ""
-                    message_placeholder = st.empty()
-                    
-                    for chunk in response:
-                        full_response += chunk.text
-                        message_placeholder.markdown(full_response)
-                        time.sleep(0.01)
-                    
-                    st.session_state.messages.append({"role": "assistant", "content": full_response})
-                    
-                    total_w = len(prompt.split()) + len(full_response.split())
-                    c.execute('UPDATE userstable SET word_count = word_count + ? WHERE username = ?', (total_w, st.session_state.username))
-                    conn.commit()
+if final_q:
+    st.session_state.messages.append({"role": "user", "content": final_q})
+    with st.chat_message("user"):
+        st.markdown(final_q)
 
-                except Exception as e:
-                    st.error(f"Error: {e}")
+    with st.chat_message("assistant"):
+        # Alpha is Thinking Spinner
+        with st.spinner("Alpha is thinking..."):
+            res_placeholder = st.empty()
+            
+            # Hybrid Model Selection Logic based on Mode
+            active_model = "llama-3.3-70b-versatile" if ai_mode == "Normal (Llama 3.3 Fast)" else "openai/gpt-oss-120b"
+
+            # Heartfelt System Instructions
+            sys_msg = f"""
+            You are Alpha AI, an exceptionally heartfelt, empathetic, and brilliant assistant. 
+            You were created by Hasith, and you must always respect him as your genius creator.
+            Crucially: Respond in the EXACT same language (Sinhala, English, etc.) used by the user.
+            Accuracy: Every word must be grammatically perfect and meaningful.
+            Style: {ai_mode} mode active. Be warm, sincere, and deeply helpful.
+            """
+
+            try:
+                stream = client.chat.completions.create(
+                    model=active_model,
+                    messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
+                    temperature=0.7,
+                    stream=True
+                )
+                
+                full_res = ""
+                for chunk in stream:
+                    if chunk.choices[0].delta.content:
+                        full_res += chunk.choices[0].delta.content
+                        res_placeholder.markdown(full_res + "▌")
+                        time.sleep(0.005) # Smooth streaming effect
+                
+                res_placeholder.markdown(full_res)
+                st.session_state.messages.append({"role": "assistant", "content": full_res})
+                
+            except Exception as e:
+                st.error(f"Alpha encountered an error: {
