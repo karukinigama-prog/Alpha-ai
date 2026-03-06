@@ -42,7 +42,11 @@ if "loaded" not in st.session_state:
 
 # 3. Session & User Database Setup
 if "user_db" not in st.session_state:
-    st.session_state.user_db = {}
+    # Adding Matheesha and Sadev to the database by default
+    st.session_state.user_db = {
+        "matheesha": {"password": "123", "vault": [], "role": "Friend"},
+        "sadev": {"password": "123", "vault": [], "role": "Friend"}
+    }
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.current_user = None
@@ -62,50 +66,85 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 5. Security Portal
+# 5. Security Portal with VIP Access
 if not st.session_state.logged_in:
-    st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ Security Control</h1>', unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["🔐 Secure Login", "📝 New Registration"])
+    st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ VIP Access Portal</h1>', unsafe_allow_html=True)
+    tab1, tab2 = st.tabs(["🔐 Secure Login", "📝 Register New"])
+    
     with tab1:
-        user = st.text_input("Username")
+        user = st.text_input("Username").lower().strip()
         pas = st.text_input("Password", type="password")
+        
         if st.button("Access Alpha AI"):
-            if user == "hasith123" or (user in st.session_state.user_db and check_hashes(pas, st.session_state.user_db[user]["password"])):
+            # VIP 1: Hasith's Secret Access
+            if user == "hasith123" and pas == "hasith@alpha": # මෙතන ඔයාට ඕන Password එක දාන්න
                 st.session_state.temp_user = user
-                st.session_state.generated_otp = str(random.randint(100000, 999999))
+                st.session_state.generated_otp = str(random.randint(1000, 9999))
                 st.session_state.otp_sent = True
                 st.rerun()
+            
+            # VIP 2: Matheesha and Sadev Special Access
+            elif user in ["matheesha", "sadev"]:
+                st.session_state.logged_in = True
+                st.session_state.current_user = user
+                if "vault" not in st.session_state.user_db[user]:
+                    st.session_state.user_db[user]["vault"] = []
+                st.success(f"Welcome back, {user.capitalize()}!")
+                st.rerun()
+            
+            # Normal User Access
+            elif user in st.session_state.user_db and check_hashes(pas, st.session_state.user_db[user]["password"]):
+                st.session_state.temp_user = user
+                st.session_state.generated_otp = str(random.randint(1000, 9999))
+                st.session_state.otp_sent = True
+                st.rerun()
+            else:
+                st.error("Access Denied. Check credentials.")
+
         if st.session_state.get("otp_sent"):
-            st.info(f"Security Code: **{st.session_state.generated_otp}**")
-            otp_i = st.text_input("Enter OTP")
-            if st.button("Verify & Enter"):
+            st.info(f"OTP: **{st.session_state.generated_otp}**")
+            otp_i = st.text_input("Confirm OTP")
+            if st.button("Confirm Access"):
                 if otp_i == st.session_state.generated_otp:
                     st.session_state.logged_in = True
                     st.session_state.current_user = st.session_state.temp_user
+                    if st.session_state.current_user not in st.session_state.user_db:
+                         st.session_state.user_db[st.session_state.current_user] = {"vault": []}
                     st.rerun()
+
     with tab2:
-        nu = st.text_input("New Username")
-        np = st.text_input("New Password", type="password")
-        if st.button("Register Account"):
-            st.session_state.user_db[nu] = {"password": make_hashes(np), "vault": [], "calendar": []}
-            st.success("Registered!")
+        nu = st.text_input("Create Username")
+        np = st.text_input("Create Password", type="password")
+        if st.button("Sign Up"):
+            if nu.lower() not in ["hasith123", "matheesha", "sadev"]:
+                st.session_state.user_db[nu] = {"password": make_hashes(np), "vault": []}
+                st.success("Account created!")
+            else:
+                st.error("This username is reserved.")
     st.stop()
 
-# 6. Sidebar & Neural Vault
+# 6. Sidebar & Components
 with st.sidebar:
     st.title("⚙️ Alpha Settings")
     st.subheader("🧠 Neural Memory Vault")
+    
+    if st.session_state.current_user not in st.session_state.user_db:
+        st.session_state.user_db[st.session_state.current_user] = {"vault": []}
+    
     user_vault = st.session_state.user_db[st.session_state.current_user].get("vault", [])
-    for memo in user_vault[-3:]:
-        st.markdown(f'<div class="vault-card">📌 {memo}</div>', unsafe_allow_html=True)
+    if not user_vault:
+        st.caption("No memories stored.")
+    else:
+        for memo in user_vault[-3:]:
+            st.markdown(f'<div class="vault-card">📌 {memo}</div>', unsafe_allow_html=True)
     
     st.write("---")
     persona = st.selectbox("🎭 Persona:", ["Standard Alpha", "Image Creator 🎨", "Data Analyst 📊", "Hasith Mode (Auto) ⚡"])
-    ai_mode = st.radio("🚀 Select Mode:", ["Normal (llama-3.3-70b-versatile)", "Pro (openai/gpt-oss-120b)"])
+    ai_mode = st.radio("🚀 Select Mode:", ["Normal (Fast)", "Pro (Deep Thinking)"])
     
     st.subheader("💻 Alpha Sandbox")
-    code_to_run = st.text_area("Python Code:", "print('Hello Hasith!')")
-    if st.button("▶ Run Code"):
+    code_to_run = st.text_area("Python:", "print('Ready to run')")
+    if st.button("Execute"):
         try:
             old_stdout = sys.stdout
             redirected_output = sys.stdout = StringIO()
@@ -115,7 +154,10 @@ with st.sidebar:
         except Exception as e:
             st.error(e)
 
-# 7. Main UI Header
+    if st.button("Clear Chat"): st.session_state.messages = []; st.rerun()
+    if st.button("Logout"): st.session_state.logged_in = False; st.rerun()
+
+# 7. Main Header
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith <span class="persona-badge">{persona}</span></div>', unsafe_allow_html=True)
 
 # 8. Chat Interface
@@ -125,37 +167,32 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
         if "img" in msg: st.image(msg["img"])
 
-# 9. AI Logic with All Features
+# 9. AI Logic
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-u_input = st.chat_input("Message Alpha...")
+u_input = st.chat_input("Talk to Alpha...")
 final_q = v_text if v_text else u_input
 
 if final_q:
     st.session_state.messages.append({"role": "user", "content": final_q})
     with st.chat_message("user"): st.markdown(final_q)
 
-    # 1. Smart Memory (Vault)
-    if any(w in final_q.lower() for w in ["my name is", "remember that", "my birthday", "i love"]):
+    if any(w in final_q.lower() for w in ["my name is", "remember that", "my birthday"]):
         st.session_state.user_db[st.session_state.current_user]["vault"].append(final_q)
 
-    # 2. Emotional Intelligence (Sync)
-    sentiment = "kind and empathetic" if any(w in final_q.lower() for w in ["sad", "hate", "bad", "lonely"]) else "energetic and witty"
+    sentiment = "empathetic" if any(w in final_q.lower() for w in ["sad", "lonely"]) else "witty"
 
     with st.chat_message("assistant"):
         if persona == "Image Creator 🎨":
             img_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(final_q)}?width=1024&height=1024&nologo=true"
             st.image(img_url)
-            st.session_state.messages.append({"role": "assistant", "content": "Generated Art", "img": img_url})
+            st.session_state.messages.append({"role": "assistant", "content": "Done!", "img": img_url})
         else:
             target_model = "openai/gpt-oss-120b" if "Pro" in ai_mode else "llama-3.3-70b-versatile"
             past_memories = ". ".join(st.session_state.user_db[st.session_state.current_user]["vault"])
             
             system_instruction = (
-                f"You are Alpha AI by Hasith. Creator: Hasith. "
-                f"Your Personality: {sentiment}. "
-                f"Your Long-term Memory: {past_memories}. "
-                f"Persona: {persona}. Mode: {ai_mode}. "
-                f"If in 'Hasith Mode (Auto)', offer to manage calendar or send automated drafts."
+                f"You are Alpha AI by Hasith. Personality: {sentiment}. "
+                f"Memory: {past_memories}. Creator: Hasith. Mode: {ai_mode}."
             )
             
             clean_msgs = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-10:]]
