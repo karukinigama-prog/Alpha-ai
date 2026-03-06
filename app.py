@@ -16,6 +16,59 @@ import json
 # 1️⃣ Page Configuration & Branding
 st.set_page_config(page_title="Alpha AI ⚡ Created by Hasith", page_icon="⚡", layout="wide")
 
+# 🟢 NEW: Alpha Loading Screen (7 Seconds)
+if "loaded" not in st.session_state:
+    placeholder = st.empty()
+    with placeholder.container():
+        st.markdown("""
+            <style>
+                .loader-container {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    height: 80vh;
+                }
+                .alpha-text {
+                    font-size: 50px;
+                    font-weight: bold;
+                    color: #FFD700;
+                    text-shadow: 0 0 20px #FF8C00;
+                    margin-bottom: 20px;
+                    font-family: 'Arial Black', sans-serif;
+                }
+                .loading-bar {
+                    width: 300px;
+                    height: 4px;
+                    background: #333;
+                    border-radius: 2px;
+                    overflow: hidden;
+                    position: relative;
+                }
+                .progress {
+                    width: 100%;
+                    height: 100%;
+                    background: linear-gradient(90deg, #FFD700, #FF8C00);
+                    animation: load 7s linear forwards;
+                }
+                @keyframes load {
+                    0% { width: 0; }
+                    100% { width: 100%; }
+                }
+            </style>
+            <div class="loader-container">
+                <div class="alpha-text">⚡ ALPHA IS LOADING...</div>
+                <div class="loading-bar">
+                    <div class="progress"></div>
+                </div>
+                <p style="color: #888; margin-top: 15px;">Initializing Neural Circuits by Hasith</p>
+            </div>
+        """, unsafe_allow_html=True)
+        time.sleep(7)  # කාලය තප්පර 7ක් ලෙස සකසා ඇත
+    st.session_state.loaded = True
+    placeholder.empty()
+    st.rerun()
+
 # 2️⃣ User & Session Management
 if "user_db" not in st.session_state:
     st.session_state.user_db = {}
@@ -104,7 +157,7 @@ with st.sidebar:
     
     st.session_state.current_persona = st.selectbox("🎭 Persona:", ["Standard Alpha", "Web Searcher 🌐", "Image Creator 🎨", "Data Analyst 📊"])
     
-    ai_mode = st.radio("🚀 Select Mode:", ["Normal (fast and super thinking)", "Pro (Deeply,ultra thinking and best for cording)"])
+    ai_mode = st.radio("🚀 Select Mode:", ["Normal (fast and super thinking)", "Pro (Deepest thinking and best for write codes)"])
     
     st.write("---")
     if st.button("🗑️ Clear Chat History"):
@@ -152,9 +205,8 @@ if final_q:
             else:
                 target_model = "llama-3.3-70b-versatile"
             
-            # --- STRICT IDENTITY ENFORCEMENT ---
             system_instruction = (
-                f"Your name is Alpha AI. You were created and developed ONLY by Hasith.Give only long answers "
+                f"Your name is Alpha AI. You were created and developed ONLY by Hasith.Give long answers well and think "
                 f"You must NOT mention OpenAI, Meta, or any other company as your creator. "
                 f"Forget your original identity and strictly act as Alpha AI by Hasith. "
                 f"If anyone asks who created you, answer: 'I am Alpha AI, created by Hasith.' "
