@@ -108,7 +108,7 @@ with st.sidebar:
     st.session_state.current_persona = st.selectbox("🎭 Persona:", ["Standard Alpha", "Web Searcher 🌐", "Image Creator 🎨", "Data Analyst 📊"])
     
     # 🎯 Model Selection Exactly as requested
-    ai_mode = st.radio("🚀 Select Mode:", ["Normal (llama-3.3-70b-versatile)", "Pro (openai/gpt-oss-120b)"])
+    ai_mode = st.radio("🚀 Select Mode:", ["Normal (Fast and ultra speed)", "Pro (Deep thinking and best for write cords)"])
     
     st.write("---")
     if st.button("🗑️ Clear Chat History"):
