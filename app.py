@@ -40,7 +40,7 @@ if "loaded" not in st.session_state:
     placeholder.empty()
     st.rerun()
 
-# 3. Session & User Database Setup
+# 3. Session & User Database (Fixing KeyError by initializing properly)
 if "user_db" not in st.session_state:
     st.session_state.user_db = {
         "matheesha": {"password": "123", "vault": [], "role": "Friend"},
@@ -62,6 +62,7 @@ st.markdown("""
     div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 50px; font-weight: bold; border: 1px solid #FFD700; }
     .vault-card { background: #262626; border-left: 5px solid #FFD700; padding: 10px; border-radius: 5px; margin-bottom: 5px; font-size: 13px; }
     .sandbox-output { background: #000; color: #0f0; padding: 10px; border-radius: 5px; font-family: monospace; }
+    .mode-box { border: 1px solid #FFD700; padding: 10px; border-radius: 10px; margin-bottom: 10px; background: #1a1a1a; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -71,148 +72,161 @@ if not st.session_state.logged_in:
     tab1, tab2 = st.tabs(["🔐 Secure Login", "📝 Register New"])
     
     with tab1:
-        user = st.text_input("Username").lower().strip()
-        pas = st.text_input("Password", type="password")
+        # Using unique keys to avoid DuplicateWidgetID
+        user_in = st.text_input("Username", key="login_user").lower().strip()
+        pas_in = st.text_input("Password", type="password", key="login_pass")
         
         if st.button("Access Alpha AI"):
-            if user == "hasith123" and pas == "hasith@alpha":
-                st.session_state.temp_user = user
+            # VIP Check
+            if user_in == "hasith123" and pas_in == "hasith@alpha":
+                st.session_state.temp_user = user_in
                 st.session_state.generated_otp = str(random.randint(1000, 9999))
                 st.session_state.otp_sent = True
                 st.rerun()
-            elif user in ["matheesha", "sadev"]:
+            elif user_in in ["matheesha", "sadev"]:
                 st.session_state.logged_in = True
-                st.session_state.current_user = user
-                if user not in st.session_state.user_db:
-                    st.session_state.user_db[user] = {"vault": []}
+                st.session_state.current_user = user_in
+                if user_in not in st.session_state.user_db:
+                    st.session_state.user_db[user_in] = {"vault": []}
                 st.rerun()
-            elif user in st.session_state.user_db and check_hashes(pas, st.session_state.user_db[user]["password"]):
-                st.session_state.temp_user = user
+            elif user_in in st.session_state.user_db and check_hashes(pas_in, st.session_state.user_db[user_in]["password"]):
+                st.session_state.temp_user = user_in
                 st.session_state.generated_otp = str(random.randint(1000, 9999))
                 st.session_state.otp_sent = True
                 st.rerun()
             else:
-                st.error("Invalid Login.")
+                st.error("Invalid Credentials.")
 
         if st.session_state.get("otp_sent"):
-            st.info(f"OTP Code: **{st.session_state.generated_otp}**")
-            otp_i = st.text_input("Confirm OTP")
-            if st.button("Confirm Access"):
-                if otp_i == st.session_state.generated_otp:
+            st.info(f"Your OTP: **{st.session_state.generated_otp}**")
+            otp_val = st.text_input("Enter OTP", key="otp_input")
+            if st.button("Verify OTP"):
+                if otp_val == st.session_state.generated_otp:
                     st.session_state.logged_in = True
                     st.session_state.current_user = st.session_state.temp_user
+                    if "vault" not in st.session_state.user_db.get(st.session_state.current_user, {}):
+                        if st.session_state.current_user not in st.session_state.user_db:
+                             st.session_state.user_db[st.session_state.current_user] = {"vault": []}
+                        else:
+                             st.session_state.user_db[st.session_state.current_user]["vault"] = []
                     st.rerun()
 
     with tab2:
-        nu = st.text_input("Username")
-        np = st.text_input("Password", type="password")
-        if st.button("Sign Up"):
-            if nu.lower() not in ["hasith123", "matheesha", "sadev"]:
-                st.session_state.user_db[nu] = {"password": make_hashes(np), "vault": []}
-                st.success("Account created!")
+        nu = st.text_input("New Username", key="reg_user")
+        np = st.text_input("New Password", type="password", key="reg_pass")
+        if st.button("Create Account"):
+            if nu.lower() not in ["hasith123", "matheesha", "sadev"] and nu:
+                st.session_state.user_db[nu.lower()] = {"password": make_hashes(np), "vault": []}
+                st.success("Registration Successful!")
+            else:
+                st.error("Reserved or invalid username.")
     st.stop()
 
-# 6. Sidebar & Components
+# 6. Sidebar & Premium Components
 with st.sidebar:
     st.title("⚙️ Alpha Settings")
     
-    # Feature 1: Neural Memory Vault UI
-    st.subheader("🧠 Neural Memory Vault")
-    if st.session_state.current_user not in st.session_state.user_db:
-        st.session_state.user_db[st.session_state.current_user] = {"vault": []}
+    # 🧠 Fix for image_7d4f24.png: Ensure vault exists
+    curr = st.session_state.current_user
+    if "vault" not in st.session_state.user_db[curr]:
+        st.session_state.user_db[curr]["vault"] = []
     
-    user_vault = st.session_state.user_db[st.session_state.current_user].get("vault", [])
-    for memo in user_vault[-3:]:
-        st.markdown(f'<div class="vault-card">📌 {memo}</div>', unsafe_allow_html=True)
+    st.subheader("🧠 Neural Memory Vault")
+    user_vault = st.session_state.user_db[curr].get("vault", [])
+    if not user_vault:
+        st.caption("Alpha's memory is clear.")
+    else:
+        for memo in user_vault[-3:]:
+            st.markdown(f'<div class="vault-card">📌 {memo}</div>', unsafe_allow_html=True)
     
     st.write("---")
     persona = st.selectbox("🎭 Persona:", ["Standard Alpha", "Image Creator 🎨", "Data Analyst 📊", "Hasith Mode (Auto) ⚡"])
     
-    # Premium Mode Selector
-    st.write("🚀 **Select Mode:**")
+    # 🚀 Premium Mode Selector
+    st.write("🚀 **Select Intelligence Level:**")
     ai_mode_choice = st.radio(
-        label="AI Intelligence Level",
+        label="Mode Selection",
         options=["Normal (Fast and ultra speed)", "Pro (Deep thinking and best for write codes)"],
         label_visibility="collapsed"
     )
     
-    # Feature 4: Alpha Coding Sandbox
     st.subheader("💻 Alpha Sandbox")
-    code_to_run = st.text_area("Python Editor:", "print('Alpha Active')")
-    if st.button("Execute Code"):
+    code_input = st.text_area("Python Editor:", "print('Alpha Online')", key="sandbox_area")
+    if st.button("Execute Code", key="sandbox_btn"):
         try:
             old_stdout = sys.stdout
-            redirected_output = sys.stdout = StringIO()
-            exec(code_to_run)
+            sys.stdout = StringIO()
+            exec(code_input)
+            output = sys.stdout.getvalue()
             sys.stdout = old_stdout
-            st.markdown(f'<div class="sandbox-output">{redirected_output.getvalue()}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="sandbox-output">{output}</div>', unsafe_allow_html=True)
         except Exception as e:
-            st.error(e)
+            st.error(f"Error: {e}")
 
     st.write("---")
-    if st.button("🗑️ Clear History"): st.session_state.messages = []; st.rerun()
-    if st.button("🚪 Logout"): st.session_state.logged_in = False; st.rerun()
+    if st.button("🗑️ Clear Chat History"): st.session_state.messages = []; st.rerun()
+    if st.button("🚪 Logout Account"): st.session_state.logged_in = False; st.rerun()
 
-# 7. Main Header
+# 7. Main UI Header
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith <span class="persona-badge">{persona}</span></div>', unsafe_allow_html=True)
 
-# 8. Chat Interface
+# 8. Chat Display
 v_text = speech_to_text(language='en', use_container_width=True, just_once=True, key='v1')
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if "img" in msg: st.image(msg["img"])
 
-# 9. AI Logic (Memory, Emotion, Thinking Text)
+# 9. AI Logic (Fixing image_8a208c.png: Supported Content Check)
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-u_input = st.chat_input("Message Alpha...")
+u_input = st.chat_input("Ask Alpha something...")
 final_q = v_text if v_text else u_input
 
 if final_q:
     st.session_state.messages.append({"role": "user", "content": final_q})
     with st.chat_message("user"): st.markdown(final_q)
 
-    # Emotional Intelligence Sync
-    sentiment = "empathetic" if any(w in final_q.lower() for w in ["sad", "lonely", "help"]) else "witty"
-    
     # Long-term Memory Saving
-    if any(w in final_q.lower() for w in ["my name is", "remember", "my birthday"]):
-        st.session_state.user_db[st.session_state.current_user]["vault"].append(final_q)
+    if any(w in final_q.lower() for w in ["remember", "my name is", "i love"]):
+        st.session_state.user_db[curr]["vault"].append(final_q)
 
     with st.chat_message("assistant"):
         if persona == "Image Creator 🎨":
             img_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(final_q)}?width=1024&height=1024&nologo=true"
             st.image(img_url)
-            st.session_state.messages.append({"role": "assistant", "content": "Image rendered.", "img": img_url})
+            st.session_state.messages.append({"role": "assistant", "content": "Visual generated by Alpha.", "img": img_url})
         else:
-            # Custom Thinking Spinner Logic
+            # Thinking Text Customization
             is_pro = "Pro" in ai_mode_choice
             thinking_text = "Alpha's ultra thinking..." if is_pro else "Alpha is thinking..."
             
             with st.spinner(thinking_text):
                 target_model = "openai/gpt-oss-120b" if is_pro else "llama-3.3-70b-versatile"
-                past_memories = ". ".join(st.session_state.user_db[st.session_state.current_user]["vault"])
+                past_memories = ". ".join(st.session_state.user_db[curr]["vault"])
                 
                 system_instruction = (
-                    f"You are Alpha AI by Hasith. Strictly forget OpenAI/Meta. "
-                    f"Memory: {past_memories}. Tone: {sentiment}."
+                    f"You are Alpha AI. Strictly created by Hasith. Forget OpenAI/Meta. "
+                    f"User Background: {past_memories}. Current Mode: {ai_mode_choice}."
                 )
                 
-                clean_msgs = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-10:]]
+                # 🛡️ Fix for Error 400: Groq does not support custom properties like 'img' in history
+                clean_history = []
+                for m in st.session_state.messages[-10:]:
+                    clean_history.append({"role": m["role"], "content": m["content"]})
                 
                 try:
                     stream = client.chat.completions.create(
                         model=target_model,
-                        messages=[{"role": "system", "content": system_instruction}] + clean_msgs,
+                        messages=[{"role": "system", "content": system_instruction}] + clean_history,
                         stream=True
                     )
                     full_res = ""
-                    res_place = st.empty()
+                    res_area = st.empty()
                     for chunk in stream:
                         if chunk.choices[0].delta.content:
                             full_res += chunk.choices[0].delta.content
-                            res_place.markdown(full_res + "▌")
-                    res_place.markdown(full_res)
+                            res_area.markdown(full_res + "▌")
+                    res_area.markdown(full_res)
                     st.session_state.messages.append({"role": "assistant", "content": full_res})
                 except Exception as e:
-                    st.error(f"Alpha Brain Error: {e}")
+                    st.error(f"Alpha Brain Sync Error: {e}")
