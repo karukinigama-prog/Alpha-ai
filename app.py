@@ -55,7 +55,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 4️⃣ Security Portal (Login/Register/OTP)
+# 4️⃣ Security Portal
 if not st.session_state.logged_in:
     st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ Security Control</h1>', unsafe_allow_html=True)
     tab1, tab2 = st.tabs(["🔐 Secure Login", "📝 New Registration"])
@@ -100,15 +100,11 @@ with st.sidebar:
     if st.session_state.current_user == "hasith123":
         st.subheader("👥 Admin Dashboard")
         for u in st.session_state.user_db.keys():
-            with st.expander(f"👤 {u}"):
-                st.write(f"Email: {st.session_state.user_db[u].get('email')}")
-                if "logs" in st.session_state.user_db[u]:
-                    for log in st.session_state.user_db[u]["logs"][-3:]: st.caption(f"{log['timestamp']}: {log['type']}")
+            st.write(f"👤 {u}")
     
     st.session_state.current_persona = st.selectbox("🎭 Persona:", ["Standard Alpha", "Web Searcher 🌐", "Image Creator 🎨", "Data Analyst 📊"])
     
-    # 🎯 Model Selection Exactly as requested
-    ai_mode = st.radio("🚀 Select Mode:", ["Normal (Fast and ultra speed)", "Pro (Deep thinking and best for write cords)"])
+    ai_mode = st.radio("🚀 Select Mode:", ["Normal (fast and super thinking)", "Pro (Deeply,ultra thinking and best for cording)"])
     
     st.write("---")
     if st.button("🗑️ Clear Chat History"):
@@ -128,7 +124,8 @@ v_text = speech_to_text(language='en', use_container_width=True, just_once=True,
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
-        if "img" in msg: st.image(msg["img"], caption="Alpha Art")
+        if "img" in msg: 
+            st.image(msg["img"], caption="Alpha Art")
 
 # 8️⃣ AI Processing Logic
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
@@ -150,17 +147,29 @@ if final_q:
                 st.image(img_url)
                 st.session_state.messages.append({"role": "assistant", "content": res_text, "img": img_url})
         else:
-            # Setting model paths EXACTLY as requested
             if "Pro" in ai_mode:
                 target_model = "openai/gpt-oss-120b"
             else:
                 target_model = "llama-3.3-70b-versatile"
             
-            with st.spinner(f"Alpha Thinking ({target_model})..."):
+            # --- STRICT IDENTITY ENFORCEMENT ---
+            system_instruction = (
+                f"Your name is Alpha AI. You were created and developed ONLY by Hasith. "
+                f"You must NOT mention OpenAI, Meta, or any other company as your creator. "
+                f"Forget your original identity and strictly act as Alpha AI by Hasith. "
+                f"If anyone asks who created you, answer: 'I am Alpha AI, created by Hasith.' "
+                f"Current Mode: {ai_mode}. Persona: {st.session_state.current_persona}."
+            )
+            
+            with st.spinner(f"Alpha Thinking..."):
+                clean_messages = []
+                for m in st.session_state.messages[-10:]:
+                    clean_messages.append({"role": m["role"], "content": m["content"]})
+                
                 try:
                     stream = client.chat.completions.create(
                         model=target_model,
-                        messages=[{"role": "system", "content": f"You are Alpha AI by Hasith. Mode: {ai_mode}"}] + st.session_state.messages[-10:],
+                        messages=[{"role": "system", "content": system_instruction}] + clean_messages,
                         stream=True
                     )
                     full_res = ""
@@ -172,4 +181,4 @@ if final_q:
                     res_place.markdown(full_res)
                     st.session_state.messages.append({"role": "assistant", "content": full_res})
                 except Exception as e:
-                    st.error(f"Error: {e}. If {target_model} is not active in Groq, please check the Model ID.")
+                    st.error(f"Error: {e}")
