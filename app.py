@@ -22,8 +22,6 @@ if "user_db" not in st.session_state:
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.current_user = None
-if "otp_verified" not in st.session_state:
-    st.session_state.otp_verified = False
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "current_persona" not in st.session_state:
@@ -57,10 +55,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 4️⃣ Security Portal
+# 4️⃣ Security Portal (Login/Register/OTP)
 if not st.session_state.logged_in:
     st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ Security Control</h1>', unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
+    tab1, tab2 = st.tabs(["🔐 Secure Login", "📝 New Registration"])
     with tab1:
         user = st.text_input("Username", key="login_user")
         pas = st.text_input("Password", type="password", key="login_pass")
@@ -71,42 +69,58 @@ if not st.session_state.logged_in:
                 st.session_state.otp_sent = True
                 st.rerun()
             else: st.error("Invalid Credentials.")
+
         if st.session_state.get("otp_sent"):
-            st.info(f"Security Code: **{st.session_state.generated_otp}**")
+            st.info(f"🛡️ Security Code: **{st.session_state.generated_otp}**")
             otp_input = st.text_input("Enter OTP", key="otp_val")
-            if st.button("Verify"):
+            if st.button("Verify & Enter"):
                 if otp_input == st.session_state.generated_otp:
                     st.session_state.logged_in = True
                     st.session_state.current_user = st.session_state.temp_user
+                    log_activity(st.session_state.current_user, "Auth", "OTP Verified")
                     st.rerun()
+                else: st.error("Invalid OTP!")
 
     with tab2:
-        new_u = st.text_input("New Username", key="reg_u")
-        new_p = st.text_input("New Password", type="password", key="reg_p")
+        new_u = st.text_input("Create Username")
+        new_email = st.text_input("Enter Email")
+        new_p = st.text_input("Create Password", type="password")
         if st.button("Register Account"):
             if new_u and new_p:
-                st.session_state.user_db[new_u] = {"password": make_hashes(new_p), "memory": [], "logs": []}
-                st.success("Registration Successful!")
+                st.session_state.user_db[new_u] = {"password": make_hashes(new_p), "email": new_email, "memory": [], "logs": []}
+                st.success("Account created! Please Login.")
     st.stop()
 
 # 5️⃣ Sidebar
 with st.sidebar:
     st.title("⚙️ Alpha Settings")
+    st.write(f"Logged in: **{st.session_state.current_user}**")
+    st.write("---")
+    
     if st.session_state.current_user == "hasith123":
         st.subheader("👥 Admin Dashboard")
-        for u in st.session_state.user_db.keys(): st.write(f"👤 {u}")
+        for u in st.session_state.user_db.keys():
+            with st.expander(f"👤 {u}"):
+                st.write(f"Email: {st.session_state.user_db[u].get('email')}")
+                if "logs" in st.session_state.user_db[u]:
+                    for log in st.session_state.user_db[u]["logs"][-3:]: st.caption(f"{log['timestamp']}: {log['type']}")
     
     st.session_state.current_persona = st.selectbox("🎭 Persona:", ["Standard Alpha", "Web Searcher 🌐", "Image Creator 🎨", "Data Analyst 📊"])
     
-    # 🎯 Model Selection Logic (As requested)
-    ai_mode = st.radio("🚀 Select Mode:", ["Normal (Llama-3.3)", "Pro (gpt-oss-120b)"])
+    # 🎯 Model Selection Exactly as requested
+    ai_mode = st.radio("🚀 Select Mode:", ["Normal (llama-3.3-70b-versatile)", "Pro (openai/gpt-oss-120b)"])
     
-    if st.button("🗑️ Clear History"): st.session_state.messages = []; st.rerun()
-    if st.button("🚪 Logout"): st.session_state.logged_in = False; st.rerun()
+    st.write("---")
+    if st.button("🗑️ Clear Chat History"):
+        st.session_state.messages = []
+        st.rerun()
+    if st.button("🚪 Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
     st.markdown("---")
-    st.caption("Alpha AI v2.0 | Created by Hasith")
+    st.caption("Developed by Hasith")
 
-# 6️⃣ UI Header
+# 6️⃣ Main UI Header
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith <span class="persona-badge">{st.session_state.current_persona}</span></div>', unsafe_allow_html=True)
 
 # 7️⃣ Voice & Chat Input
@@ -114,9 +128,9 @@ v_text = speech_to_text(language='en', use_container_width=True, just_once=True,
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
-        if "img" in msg: st.image(msg["img"])
+        if "img" in msg: st.image(msg["img"], caption="Alpha Art")
 
-# 8️⃣ AI Logic (Model Selection)
+# 8️⃣ AI Processing Logic
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 u_input = st.chat_input("Ask Alpha something...")
 final_q = v_text if v_text else u_input
@@ -128,21 +142,21 @@ if final_q:
 
     with st.chat_message("assistant"):
         if st.session_state.current_persona == "Image Creator 🎨":
-            with st.spinner("Creating Art..."):
+            with st.spinner("Alpha is painting..."):
                 encoded = urllib.parse.quote(final_q)
                 img_url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=1024&nologo=true"
-                res_text = f"I have generated the image for your prompt: '{final_q}'"
+                res_text = f"I have generated the image for: '{final_q}'"
                 st.markdown(res_text)
                 st.image(img_url)
                 st.session_state.messages.append({"role": "assistant", "content": res_text, "img": img_url})
         else:
-            # Setting exact model paths based on Mode selection
+            # Setting model paths EXACTLY as requested
             if "Pro" in ai_mode:
-                target_model = "gpt-oss-120b"
+                target_model = "openai/gpt-oss-120b"
             else:
                 target_model = "llama-3.3-70b-versatile"
             
-            with st.spinner(f"Alpha is processing (using {target_model})..."):
+            with st.spinner(f"Alpha Thinking ({target_model})..."):
                 try:
                     stream = client.chat.completions.create(
                         model=target_model,
@@ -158,7 +172,4 @@ if final_q:
                     res_place.markdown(full_res)
                     st.session_state.messages.append({"role": "assistant", "content": full_res})
                 except Exception as e:
-                    # Automatic Fallback if the specific model ID fails
-                    st.error(f"Note: {target_model} is currently unavailable. Using backup engine.")
-                    stream = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": final_q}], stream=True)
-                    # (Stream handling continues)
+                    st.error(f"Error: {e}. If {target_model} is not active in Groq, please check the Model ID.")
