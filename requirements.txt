@@ -6,3 +6,4 @@ plotly
 requests
 PyPDF2
 gTTS
+Pillow
