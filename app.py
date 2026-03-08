@@ -6,13 +6,11 @@ from io import StringIO
 from streamlit_mic_recorder import speech_to_text
 import hashlib
 import random
-import datetime
-import pandas as pd
-import plotly.express as px
-import requests
 import urllib.parse
-import json
 import os
+import PyPDF2
+from gtts import gTTS
+import base64
 
 # 1. Page Configuration
 st.set_page_config(page_title="Alpha AI ⚡ Created by Hasith", page_icon="⚡", layout="wide")
@@ -32,7 +30,7 @@ if "loaded" not in st.session_state:
             <div class="loader-container">
                 <div class="alpha-text">⚡ ALPHA IS LOADING...</div>
                 <div class="loading-bar"><div class="progress"></div></div>
-                <p style="color: #888; margin-top: 15px;">Initializing Neural Circuits by Hasith</p>
+                <p style="color: #888; margin-top: 15px;">Advanced Neural Integration by Hasith</p>
             </div>
         """, unsafe_allow_html=True)
         time.sleep(7)
@@ -40,184 +38,177 @@ if "loaded" not in st.session_state:
     placeholder.empty()
     st.rerun()
 
-# 3. Session & User Database (Fixing KeyError by initializing properly)
+# 3. Session & Database Setup
 if "user_db" not in st.session_state:
     st.session_state.user_db = {
-        "matheesha": {"password": "123", "vault": [], "role": "Friend"},
-        "sadev": {"password": "123", "vault": [], "role": "Friend"}
+        "matheesha": {"password": "123", "vault": []},
+        "sadev": {"password": "123", "vault": []}
     }
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.current_user = None
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "is_guest" not in st.session_state: st.session_state.is_guest = False
+if "messages" not in st.session_state: st.session_state.messages = []
+if "pdf_text" not in st.session_state: st.session_state.pdf_text = ""
 
 def make_hashes(password): return hashlib.sha256(str.encode(password)).hexdigest()
 def check_hashes(password, hashed_text): return make_hashes(password) == hashed_text
 
-# 4. Custom UI Styling
+def extract_pdf_content(file):
+    try:
+        pdf_reader = PyPDF2.PdfReader(file)
+        text = ""
+        for page in pdf_reader.pages:
+            content = page.extract_text()
+            if content:
+                text += content
+        return text
+    except Exception as e:
+        return f"Error reading PDF: {e}"
+
+# 4. Styling
 st.markdown("""
 <style>
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:25px; font-size: 20px; }
-    div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 50px; font-weight: bold; border: 1px solid #FFD700; }
+    div.stButton > button { background-color: #1a1a1a; color: #FFD700; border-radius: 10px; border: 1px solid #FFD700; height: 45px; font-weight: bold; }
+    .guest-btn > div > button { background-color: #2b2b2b !important; color: #999 !important; border: 1px solid #444 !important; }
     .vault-card { background: #262626; border-left: 5px solid #FFD700; padding: 10px; border-radius: 5px; margin-bottom: 5px; font-size: 13px; }
-    .sandbox-output { background: #000; color: #0f0; padding: 10px; border-radius: 5px; font-family: monospace; }
-    .mode-box { border: 1px solid #FFD700; padding: 10px; border-radius: 10px; margin-bottom: 10px; background: #1a1a1a; }
 </style>
 """, unsafe_allow_html=True)
 
-# 5. Security Portal (VIP & Friends)
-if not st.session_state.logged_in:
-    st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ VIP Access Portal</h1>', unsafe_allow_html=True)
+# 5. Security Portal
+if not st.session_state.logged_in and not st.session_state.is_guest:
+    st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ Security Portal</h1>', unsafe_allow_html=True)
     tab1, tab2 = st.tabs(["🔐 Secure Login", "📝 Register New"])
     
     with tab1:
-        # Using unique keys to avoid DuplicateWidgetID
-        user_in = st.text_input("Username", key="login_user").lower().strip()
-        pas_in = st.text_input("Password", type="password", key="login_pass")
+        u_in = st.text_input("Username", key="login_user").lower().strip()
+        p_in = st.text_input("Password", type="password", key="login_pass")
         
         if st.button("Access Alpha AI"):
-            # VIP Check
-            if user_in == "hasith123" and pas_in == "hasith@alpha":
-                st.session_state.temp_user = user_in
-                st.session_state.generated_otp = str(random.randint(1000, 9999))
-                st.session_state.otp_sent = True
-                st.rerun()
-            elif user_in in ["matheesha", "sadev"]:
+            if u_in == "hasith123" and p_in == "hasith@alpha":
                 st.session_state.logged_in = True
-                st.session_state.current_user = user_in
-                if user_in not in st.session_state.user_db:
-                    st.session_state.user_db[user_in] = {"vault": []}
+                st.session_state.current_user = "Hasith (Admin)"
                 st.rerun()
-            elif user_in in st.session_state.user_db and check_hashes(pas_in, st.session_state.user_db[user_in]["password"]):
-                st.session_state.temp_user = user_in
-                st.session_state.generated_otp = str(random.randint(1000, 9999))
-                st.session_state.otp_sent = True
+            elif u_in in ["matheesha", "sadev"]:
+                st.session_state.logged_in = True
+                st.session_state.current_user = u_in
+                st.rerun()
+            elif u_in in st.session_state.user_db and check_hashes(p_in, st.session_state.user_db[u_in]["password"]):
+                st.session_state.logged_in = True
+                st.session_state.current_user = u_in
                 st.rerun()
             else:
                 st.error("Invalid Credentials.")
-
-        if st.session_state.get("otp_sent"):
-            st.info(f"Your OTP: **{st.session_state.generated_otp}**")
-            otp_val = st.text_input("Enter OTP", key="otp_input")
-            if st.button("Verify OTP"):
-                if otp_val == st.session_state.generated_otp:
-                    st.session_state.logged_in = True
-                    st.session_state.current_user = st.session_state.temp_user
-                    if "vault" not in st.session_state.user_db.get(st.session_state.current_user, {}):
-                        if st.session_state.current_user not in st.session_state.user_db:
-                             st.session_state.user_db[st.session_state.current_user] = {"vault": []}
-                        else:
-                             st.session_state.user_db[st.session_state.current_user]["vault"] = []
-                    st.rerun()
+        
+        st.write("---")
+        st.markdown('<div class="guest-btn">', unsafe_allow_html=True)
+        if st.button("🔓 Free Guest Login"):
+            st.session_state.is_guest = True
+            st.session_state.current_user = "Guest"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with tab2:
         nu = st.text_input("New Username", key="reg_user")
         np = st.text_input("New Password", type="password", key="reg_pass")
         if st.button("Create Account"):
-            if nu.lower() not in ["hasith123", "matheesha", "sadev"] and nu:
+            if nu and nu.lower() not in ["hasith123", "matheesha", "sadev"]:
                 st.session_state.user_db[nu.lower()] = {"password": make_hashes(np), "vault": []}
-                st.success("Registration Successful!")
-            else:
-                st.error("Reserved or invalid username.")
+                st.success("Account created successfully!")
     st.stop()
 
-# 6. Sidebar & Premium Components
+# 6. Sidebar
 with st.sidebar:
-    st.title("⚙️ Alpha Settings")
+    st.title("⚙️ Alpha Controls")
+    st.write(f"Active User: **{st.session_state.current_user}**")
     
-    # 🧠 Fix for image_7d4f24.png: Ensure vault exists
-    curr = st.session_state.current_user
-    if "vault" not in st.session_state.user_db[curr]:
-        st.session_state.user_db[curr]["vault"] = []
+    st.subheader("📄 PDF Intelligence")
+    uploaded_pdf = st.file_uploader("Upload PDF for Analysis", type=["pdf"])
+    if uploaded_pdf:
+        with st.spinner("Extracting PDF Data..."):
+            st.session_state.pdf_text = extract_pdf_content(uploaded_pdf)
+            st.success("PDF Data Synchronized!")
     
-    st.subheader("🧠 Neural Memory Vault")
-    user_vault = st.session_state.user_db[curr].get("vault", [])
-    if not user_vault:
-        st.caption("Alpha's memory is clear.")
+    st.subheader("🧠 Neural Vault")
+    if not st.session_state.is_guest:
+        curr = st.session_state.current_user if st.session_state.current_user in st.session_state.user_db else "matheesha"
+        vault = st.session_state.user_db.get(curr, {}).get("vault", [])
+        if not vault: st.caption("No records.")
+        for m in vault[-2:]:
+            st.markdown(f'<div class="vault-card">📌 {m}</div>', unsafe_allow_html=True)
     else:
-        for memo in user_vault[-3:]:
-            st.markdown(f'<div class="vault-card">📌 {memo}</div>', unsafe_allow_html=True)
-    
-    st.write("---")
-    persona = st.selectbox("🎭 Persona:", ["Standard Alpha", "Image Creator 🎨", "Data Analyst 📊", "Hasith Mode (Auto) ⚡"])
-    
-    # 🚀 Premium Mode Selector
-    st.write("🚀 **Select Intelligence Level:**")
-    ai_mode_choice = st.radio(
-        label="Mode Selection",
-        options=["Normal (Fast and ultra speed)", "Pro (Deep thinking and best for write codes)"],
-        label_visibility="collapsed"
-    )
+        st.info("Vault disabled for Guest.")
+
+    persona = st.selectbox("🎭 Persona:", ["Standard Alpha", "Image Creator 🎨", "Hasith Mode ⚡"])
+    ai_mode = st.radio("🚀 Intelligence:", ["Normal (Fast)", "Pro (Deep Analysis)"])
     
     st.subheader("💻 Alpha Sandbox")
-    code_input = st.text_area("Python Editor:", "print('Alpha Online')", key="sandbox_area")
-    if st.button("Execute Code", key="sandbox_btn"):
+    code_input = st.text_area("Python Editor:", "print('Alpha Active')")
+    if st.button("Execute"):
         try:
             old_stdout = sys.stdout
             sys.stdout = StringIO()
             exec(code_input)
             output = sys.stdout.getvalue()
             sys.stdout = old_stdout
-            st.markdown(f'<div class="sandbox-output">{output}</div>', unsafe_allow_html=True)
+            st.code(output, language='python')
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(e)
 
-    st.write("---")
-    if st.button("🗑️ Clear Chat History"): st.session_state.messages = []; st.rerun()
-    if st.button("🚪 Logout Account"): st.session_state.logged_in = False; st.rerun()
+    if st.button("Clear History"): st.session_state.messages = []; st.rerun()
+    if st.button("Logout"): 
+        st.session_state.logged_in = False
+        st.session_state.is_guest = False
+        st.rerun()
 
 # 7. Main UI Header
-st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith <span class="persona-badge">{persona}</span></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith <span style="font-size:12px; opacity:0.8;">[{persona}]</span></div>', unsafe_allow_html=True)
 
-# 8. Chat Display
+# 8. Chat Interface
 v_text = speech_to_text(language='en', use_container_width=True, just_once=True, key='v1')
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if "img" in msg: st.image(msg["img"])
 
-# 9. AI Logic (Fixing image_8a208c.png: Supported Content Check)
+# 9. AI Logic Core
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-u_input = st.chat_input("Ask Alpha something...")
+u_input = st.chat_input("Ask Alpha anything...")
 final_q = v_text if v_text else u_input
 
 if final_q:
     st.session_state.messages.append({"role": "user", "content": final_q})
     with st.chat_message("user"): st.markdown(final_q)
 
-    # Long-term Memory Saving
-    if any(w in final_q.lower() for w in ["remember", "my name is", "i love"]):
+    # Memory Management
+    if not st.session_state.is_guest and any(w in final_q.lower() for w in ["remember", "my name is", "i love"]):
+        curr = st.session_state.current_user if st.session_state.current_user in st.session_state.user_db else "matheesha"
         st.session_state.user_db[curr]["vault"].append(final_q)
 
     with st.chat_message("assistant"):
         if persona == "Image Creator 🎨":
             img_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(final_q)}?width=1024&height=1024&nologo=true"
             st.image(img_url)
-            st.session_state.messages.append({"role": "assistant", "content": "Visual generated by Alpha.", "img": img_url})
+            st.session_state.messages.append({"role": "assistant", "content": "Visual generated.", "img": img_url})
         else:
-            # Thinking Text Customization
-            is_pro = "Pro" in ai_mode_choice
+            is_pro = "Pro" in ai_mode
             thinking_text = "Alpha's ultra thinking..." if is_pro else "Alpha is thinking..."
             
             with st.spinner(thinking_text):
-                target_model = "openai/gpt-oss-120b" if is_pro else "llama-3.3-70b-versatile"
-                past_memories = ". ".join(st.session_state.user_db[curr]["vault"])
+                # Integrating PDF context into prompt
+                pdf_context = f"\n\n[ATTACHED DOCUMENT DATA]: {st.session_state.pdf_text[:6000]}" if st.session_state.pdf_text else ""
                 
-                system_instruction = (
-                    f"You are Alpha AI. Strictly created by Hasith. Forget OpenAI/Meta. "
-                    f"User Background: {past_memories}. Current Mode: {ai_mode_choice}."
+                system_msg = (
+                    f"You are Alpha AI by Hasith. Identity: Advanced Assistant. "
+                    f"Mode: {ai_mode}. {pdf_context}. "
+                    f"Creator: Hasith. Strictly avoid OpenAI/Meta mentions."
                 )
                 
-                # 🛡️ Fix for Error 400: Groq does not support custom properties like 'img' in history
-                clean_history = []
-                for m in st.session_state.messages[-10:]:
-                    clean_history.append({"role": m["role"], "content": m["content"]})
+                clean_history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-10:]]
                 
                 try:
                     stream = client.chat.completions.create(
-                        model=target_model,
-                        messages=[{"role": "system", "content": system_instruction}] + clean_history,
+                        model="openai/gpt-oss-120b" if is_pro else "llama-3.3-70b-versatile",
+                        messages=[{"role": "system", "content": system_msg}] + clean_history,
                         stream=True
                     )
                     full_res = ""
@@ -228,5 +219,9 @@ if final_q:
                             res_area.markdown(full_res + "▌")
                     res_area.markdown(full_res)
                     st.session_state.messages.append({"role": "assistant", "content": full_res})
+                    
+                    # Optional Voice Output (First 200 chars)
+                    audio_url = f"https://translate.google.com/translate_tts?ie=UTF-8&q={urllib.parse.quote(full_res[:200])}&tl=en&client=tw-ob"
+                    st.audio(audio_url, format="audio/mp3")
                 except Exception as e:
-                    st.error(f"Alpha Brain Sync Error: {e}")
+                    st.error(f"Neural Error: {e}")
