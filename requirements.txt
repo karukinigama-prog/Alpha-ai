@@ -4,3 +4,5 @@ streamlit-mic-recorder
 pandas
 plotly
 requests
+PyPDF2
+gTTS
