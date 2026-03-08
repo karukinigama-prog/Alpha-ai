@@ -45,6 +45,7 @@ if "user_db" not in st.session_state:
         "sadev": {"password": "123", "vault": []}
     }
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "current_user" not in st.session_state: st.session_state.current_user = None
 if "is_guest" not in st.session_state: st.session_state.is_guest = False
 if "messages" not in st.session_state: st.session_state.messages = []
 if "pdf_text" not in st.session_state: st.session_state.pdf_text = ""
@@ -58,13 +59,12 @@ def extract_pdf_content(file):
         text = ""
         for page in pdf_reader.pages:
             content = page.extract_text()
-            if content:
-                text += content
+            if content: text += content
         return text
     except Exception as e:
         return f"Error reading PDF: {e}"
 
-# 4. Styling
+# 4. Global UI Styling
 st.markdown("""
 <style>
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:25px; font-size: 20px; }
@@ -74,7 +74,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 5. Security Portal
+# 5. Security Portal (Login/Guest)
 if not st.session_state.logged_in and not st.session_state.is_guest:
     st.markdown('<h1 style="text-align:center;">Alpha AI ⚡ Security Portal</h1>', unsafe_allow_html=True)
     tab1, tab2 = st.tabs(["🔐 Secure Login", "📝 Register New"])
@@ -86,15 +86,14 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
         if st.button("Access Alpha AI"):
             if u_in == "hasith123" and p_in == "hasith@alpha":
                 st.session_state.logged_in = True
-                st.session_state.current_user = "Hasith (Admin)"
+                st.session_state.current_user = "hasith123"
+                if "vault" not in st.session_state.user_db.get(u_in, {}):
+                    st.session_state.user_db[u_in] = {"vault": []}
                 st.rerun()
-            elif u_in in ["matheesha", "sadev"]:
+            elif u_in in ["matheesha", "sadev"] or (u_in in st.session_state.user_db and check_hashes(p_in, st.session_state.user_db[u_in].get("password", ""))):
                 st.session_state.logged_in = True
                 st.session_state.current_user = u_in
-                st.rerun()
-            elif u_in in st.session_state.user_db and check_hashes(p_in, st.session_state.user_db[u_in]["password"]):
-                st.session_state.logged_in = True
-                st.session_state.current_user = u_in
+                if u_in not in st.session_state.user_db: st.session_state.user_db[u_in] = {"vault": []}
                 st.rerun()
             else:
                 st.error("Invalid Credentials.")
@@ -116,7 +115,7 @@ if not st.session_state.logged_in and not st.session_state.is_guest:
                 st.success("Account created successfully!")
     st.stop()
 
-# 6. Sidebar
+# 6. Sidebar Menu
 with st.sidebar:
     st.title("⚙️ Alpha Controls")
     st.write(f"Active User: **{st.session_state.current_user}**")
@@ -129,42 +128,29 @@ with st.sidebar:
             st.success("PDF Data Synchronized!")
     
     st.subheader("🧠 Neural Vault")
-    if not st.session_state.is_guest:
-        curr = st.session_state.current_user if st.session_state.current_user in st.session_state.user_db else "matheesha"
-        vault = st.session_state.user_db.get(curr, {}).get("vault", [])
-        if not vault: st.caption("No records.")
+    curr = st.session_state.current_user
+    if not st.session_state.is_guest and curr in st.session_state.user_db:
+        vault = st.session_state.user_db[curr].get("vault", [])
+        if not vault: st.caption("No records found.")
         for m in vault[-2:]:
             st.markdown(f'<div class="vault-card">📌 {m}</div>', unsafe_allow_html=True)
     else:
-        st.info("Vault disabled for Guest.")
+        st.info("Vault disabled for Guest mode.")
 
     persona = st.selectbox("🎭 Persona:", ["Standard Alpha", "Image Creator 🎨", "Hasith Mode ⚡"])
-    ai_mode = st.radio("🚀 Intelligence:", ["Normal (Fast)", "Pro (Deep Analysis)"])
+    ai_mode = st.radio("🚀 Intelligence Level:", ["Normal (Fast)", "Pro (Deep Analysis)"])
     
-    st.subheader("💻 Alpha Sandbox")
-    code_input = st.text_area("Python Editor:", "print('Alpha Active')")
-    if st.button("Execute"):
-        try:
-            old_stdout = sys.stdout
-            sys.stdout = StringIO()
-            exec(code_input)
-            output = sys.stdout.getvalue()
-            sys.stdout = old_stdout
-            st.code(output, language='python')
-        except Exception as e:
-            st.error(e)
-
     if st.button("Clear History"): st.session_state.messages = []; st.rerun()
     if st.button("Logout"): 
         st.session_state.logged_in = False
         st.session_state.is_guest = False
         st.rerun()
 
-# 7. Main UI Header
-st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith <span style="font-size:12px; opacity:0.8;">[{persona}]</span></div>', unsafe_allow_html=True)
+# 7. Main Header
+st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
-# 8. Chat Interface
-v_text = speech_to_text(language='en', use_container_width=True, just_once=True, key='v1')
+# 8. Chat History Display
+v_text = speech_to_text(language='en', use_container_width=True, just_once=True, key='v_rec')
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -181,7 +167,8 @@ if final_q:
 
     # Memory Management
     if not st.session_state.is_guest and any(w in final_q.lower() for w in ["remember", "my name is", "i love"]):
-        curr = st.session_state.current_user if st.session_state.current_user in st.session_state.user_db else "matheesha"
+        curr = st.session_state.current_user
+        if "vault" not in st.session_state.user_db[curr]: st.session_state.user_db[curr]["vault"] = []
         st.session_state.user_db[curr]["vault"].append(final_q)
 
     with st.chat_message("assistant"):
@@ -194,21 +181,16 @@ if final_q:
             thinking_text = "Alpha's ultra thinking..." if is_pro else "Alpha is thinking..."
             
             with st.spinner(thinking_text):
-                # Integrating PDF context into prompt
-                pdf_context = f"\n\n[ATTACHED DOCUMENT DATA]: {st.session_state.pdf_text[:6000]}" if st.session_state.pdf_text else ""
-                
-                system_msg = (
-                    f"You are Alpha AI by Hasith. Identity: Advanced Assistant. "
-                    f"Mode: {ai_mode}. {pdf_context}. "
-                    f"Creator: Hasith. Strictly avoid OpenAI/Meta mentions."
-                )
-                
+                # Clean history (fix for 400 error)
                 clean_history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-10:]]
+                
+                pdf_context = f"Document Content: {st.session_state.pdf_text[:5000]}" if st.session_state.pdf_text else ""
+                sys_prompt = f"You are Alpha AI by Hasith. Mode: {ai_mode}. {pdf_context}. Be precise."
                 
                 try:
                     stream = client.chat.completions.create(
                         model="openai/gpt-oss-120b" if is_pro else "llama-3.3-70b-versatile",
-                        messages=[{"role": "system", "content": system_msg}] + clean_history,
+                        messages=[{"role": "system", "content": sys_prompt}] + clean_history,
                         stream=True
                     )
                     full_res = ""
@@ -220,8 +202,16 @@ if final_q:
                     res_area.markdown(full_res)
                     st.session_state.messages.append({"role": "assistant", "content": full_res})
                     
-                    # Optional Voice Output (First 200 chars)
-                    audio_url = f"https://translate.google.com/translate_tts?ie=UTF-8&q={urllib.parse.quote(full_res[:200])}&tl=en&client=tw-ob"
-                    st.audio(audio_url, format="audio/mp3")
+                    # --- VOICE OUTPUT SYSTEM ---
+                    tts = gTTS(text=full_res[:250], lang='en')
+                    tts.save("response.mp3")
+                    with open("response.mp3", "rb") as f:
+                        audio_bytes = f.read()
+                        st.audio(audio_bytes, format="audio/mp3")
+                        # Auto-play attempt
+                        b64 = base64.b64encode(audio_bytes).decode()
+                        st.markdown(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>', unsafe_allow_html=True)
+                    os.remove("response.mp3")
+                    
                 except Exception as e:
-                    st.error(f"Neural Error: {e}")
+                    st.error(f"Neural Sync Error: {e}")
