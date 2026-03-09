@@ -1,6 +1,7 @@
 streamlit
 groq
 edge-tts
+duckduckgo_search
 PyPDF2
 requests
 pandas
