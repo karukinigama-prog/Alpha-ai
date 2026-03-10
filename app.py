@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------------- UI STYLE ----------------
+# ---------------- STYLE ----------------
 
 st.markdown("""
 <style>
@@ -85,13 +85,13 @@ animation:scan 1.2s infinite alternate;
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- LOADING SCREEN ----------------
+# ---------------- LOADER ----------------
 
 if "loaded" not in st.session_state:
 
-    load = st.empty()
+    loader = st.empty()
 
-    with load.container():
+    with loader.container():
 
         st.markdown("""
         <div class="loader">
@@ -232,10 +232,10 @@ NETWORK : CONNECTED
 </div>
 """,unsafe_allow_html=True)
 
-# ---------------- GROQ ----------------
+# ---------------- GROQ CLIENT ----------------
 
 client = Groq(
-    api_key="YOUR_GROQ_API_KEY"
+    api_key=st.secrets["GROQ_API_KEY"]
 )
 
 # ---------------- CHAT MEMORY ----------------
@@ -266,14 +266,18 @@ if prompt:
 
     st.chat_message("user").write(prompt)
 
-    completion = client.chat.completions.create(
+    try:
 
-        model="llama3-70b-8192",
+        completion = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=st.session_state.messages
+        )
 
-        messages=st.session_state.messages
-    )
+        reply = completion.choices[0].message.content
 
-    reply = completion.choices[0].message.content
+    except Exception:
+
+        reply="KITT AI CORE ERROR"
 
     st.session_state.messages.append({
         "role":"assistant",
@@ -284,7 +288,7 @@ if prompt:
 
 # ---------------- VOICE ----------------
 
-async def get_voice(text):
+async def speak(text):
 
     voice="en-IE-ConnorNeural"
 
@@ -301,7 +305,7 @@ async def get_voice(text):
 
 if prompt:
 
-    audio_data=asyncio.run(get_voice(reply))
+    audio_data=asyncio.run(speak(reply))
 
     b64=base64.b64encode(audio_data).decode()
 
