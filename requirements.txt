@@ -1,10 +1,9 @@
 streamlit
 groq
-edge-tts
+elevenlabs
 duckduckgo_search
 PyPDF2
 requests
 pandas
 plotly
 pygame
-replicate
