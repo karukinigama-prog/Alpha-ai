@@ -1,168 +1,311 @@
 import streamlit as st
 from groq import Groq
-import replicate
 import time
 import base64
 import asyncio
 import edge_tts
-import os
+from PyPDF2 import PdfReader
 
-# --- 1. SYSTEM CORE CONFIGURATION ---
-st.set_page_config(page_title="MOVIE KITT | IMPERIAL CORE", page_icon="🏎️", layout="wide")
+# ---------------- PAGE CONFIG ----------------
 
-# --- 2. CSS & UI RULES SYSTEM (THE IMPERIAL LOOK) ---
+st.set_page_config(
+    page_title="KITT AI",
+    page_icon="🏎️",
+    layout="wide"
+)
+
+# ---------------- UI STYLE ----------------
+
 st.markdown("""
-    <style>
-    .stApp { background: #000; color: #fff; font-family: 'Share Tech Mono', monospace; }
-    
-    /* 100-BAR MECHANICAL SCANNER / LOADING SCREEN */
-    .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh; }
-    .k-title { font-size: 110px; color: red; text-shadow: 0 0 50px red; letter-spacing: 30px; font-weight: 900; margin: 0; }
-    .scanner-track { width: 850px; height: 35px; background: #050505; border: 2px solid #333; display: flex; gap: 3px; padding: 5px; overflow: hidden; }
-    .light-bar { width: 6px; height: 100%; background: #1a0000; transition: 0.1s; border-radius: 2px; }
-    .light-bar.active { background: #ff0000; box-shadow: 0 0 20px #ff0000, 0 0 8px white inset; }
+<style>
 
-    /* DYNAMIC VOICE VISUALIZER BARS */
-    .voice-box { display: flex; align-items: center; justify-content: center; gap: 6px; height: 90px; background: #050505; border: 2px solid #222; width: 320px; margin: 20px auto; border-radius: 12px; }
-    .v-bar { width: 14px; background: #ff0000; box-shadow: 0 0 15px #ff0000; border-radius: 2px; height: 12px; transition: height 0.1s; }
-    @keyframes voice-jump { 0% { height: 12px; } 50% { height: 75px; } 100% { height: 18px; } }
-    .v-anim { animation: voice-jump 0.35s infinite ease-in-out; }
+.stApp{
+background: radial-gradient(circle at center,#050505,#000000);
+color:white;
+font-family:Courier New;
+}
 
-    /* SIDEBAR & UI ELEMENTS */
-    section[data-testid="stSidebar"] { background-color: #050505 !important; border-right: 2px solid red; }
-    .glass-panel { background: linear-gradient(180deg, rgba(255,0,0,0.2) 0%, transparent 100%); border: 1px solid rgba(255, 0, 0, 0.4); padding: 20px; border-radius: 12px; text-align: center; }
-    div.stChatFloatingInputContainer { background-color: transparent !important; }
-    </style>
+.glass-banner{
+background:rgba(255,0,0,0.08);
+backdrop-filter:blur(12px);
+border:1px solid rgba(255,0,0,0.4);
+padding:18px;
+border-radius:12px;
+text-align:center;
+margin-bottom:15px;
+}
+
+.status-bar{
+background:#0a0a0a;
+padding:10px;
+border-left:4px solid red;
+color:#888;
+margin-bottom:20px;
+}
+
+.loader{
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+height:90vh;
+}
+
+.kitt{
+font-size:70px;
+color:red;
+text-shadow:0 0 25px red;
+font-weight:bold;
+letter-spacing:6px;
+}
+
+.scan{
+width:350px;
+height:12px;
+background:#111;
+border-radius:8px;
+overflow:hidden;
+margin-top:25px;
+}
+
+.light{
+width:120px;
+height:100%;
+background:linear-gradient(90deg,transparent,red,transparent);
+box-shadow:0 0 25px red;
+position:relative;
+animation:scan 1.2s infinite alternate;
+}
+
+@keyframes scan{
+0%{left:-10%;}
+100%{left:85%;}
+}
+
+</style>
 """, unsafe_allow_html=True)
 
-# --- 3. THE 7-SECOND LOADING SCREEN ---
+# ---------------- LOADING SCREEN ----------------
+
 if "loaded" not in st.session_state:
-    l_ph = st.empty()
-    for i in range(45):
-        bars = "".join([f'<div class="light-bar {"active" if abs((j%100)-(i*4.5%100)) < 15 else ""}"></div>' for j in range(100)])
-        l_ph.markdown(f'<div class="loader-container"><div class="k-title">KITT</div><div class="scanner-track">{bars}</div><div style="color:red; margin-top:20px;">> SYSTEM INITIALIZING... [OK]</div></div>', unsafe_allow_html=True)
-        time.sleep(0.1)
-    st.session_state.loaded = True
+
+    load = st.empty()
+
+    with load.container():
+
+        st.markdown("""
+        <div class="loader">
+
+        <div class="kitt">KITT INITIALIZING</div>
+
+        <div class="scan">
+        <div class="light"></div>
+        </div>
+
+        <br>
+
+        MEMORY CHECK : OK <br>
+        CPU STATUS : STABLE <br>
+        SAT COM : CONNECTED
+
+        </div>
+        """, unsafe_allow_html=True)
+
+        time.sleep(4)
+
+    st.session_state.loaded=True
     st.rerun()
 
-# --- 4. SECURITY SYSTEM & BYPASS ---
-if "logged_in" not in st.session_state: st.session_state.logged_in = False
+# ---------------- USER DATABASE ----------------
+
+if "user_db" not in st.session_state:
+    st.session_state.user_db={
+        "matheesha":"123",
+        "sadev":"123"
+    }
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in=False
+
+# ---------------- LOGIN PAGE ----------------
+
 if not st.session_state.logged_in:
-    st.markdown('<div class="glass-panel"><h1>KITT IMPERIAL SECURITY</h1></div>', unsafe_allow_html=True)
-    bypass = st.text_input("MASTER BYPASS KEY", type="password")
-    if st.button("OVERRIDE"):
-        if bypass == "I CREATED YOU":
-            st.session_state.logged_in, st.session_state.user = True, "Hasith Heshan"
-            st.rerun()
+
+    st.markdown('<div class="glass-banner"><h1>KITT SECURITY PORTAL</h1></div>',unsafe_allow_html=True)
+
+    tab1,tab2,tab3 = st.tabs(["LOGIN","REGISTER","CREATOR"])
+
+    with tab1:
+
+        u=st.text_input("USER ID").lower()
+        p=st.text_input("PASSWORD",type="password")
+
+        if st.button("LOGIN"):
+
+            if u in st.session_state.user_db and st.session_state.user_db[u]==p:
+
+                st.session_state.logged_in=True
+                st.session_state.user=u
+                st.rerun()
+
+            else:
+                st.error("ACCESS DENIED")
+
+    with tab2:
+
+        newu=st.text_input("NEW USER")
+        newp=st.text_input("NEW PASSWORD",type="password")
+
+        if st.button("CREATE ACCOUNT"):
+
+            st.session_state.user_db[newu]=newp
+            st.success("ACCOUNT CREATED")
+
+    with tab3:
+
+        key=st.text_input("MASTER KEY",type="password")
+
+        if st.button("OVERRIDE"):
+
+            if key=="Hasith12378":
+
+                st.session_state.logged_in=True
+                st.session_state.user="Hasith"
+                st.rerun()
+
+            else:
+                st.error("INVALID KEY")
+
     st.stop()
 
-# --- 5. API SECRETS INTEGRATION ---
-try:
-    replicate.client.api_token = st.secrets["REPLICATE_API_KEY"]
-except Exception as e:
-    st.error("SYSTEM ALERT: Replicate API Key missing in st.secrets.")
+# ---------------- SIDEBAR ----------------
 
-# --- 6. VOICE & AUDIO ENGINE ---
-def play_kitt_scanner_sound():
-    if os.path.exists("kitt_scanner.mp3"):
-        with open("kitt_scanner.mp3", "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-            st.markdown(f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
-        time.sleep(1.6)
-
-async def generate_male_voice(text):
-    is_sinhala = any('\u0d80' <= char <= '\u0dff' for char in text)
-    voice = "si-LK-SameerNeural" if is_sinhala else "en-IE-ConnorNeural"
-    communicate = edge_tts.Communicate(text, voice)
-    audio_data = b""
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio": audio_data += chunk["data"]
-    return audio_data
-
-# --- 7. SIDEBAR COMMAND CENTER (ORDERED AS REQUESTED) ---
 with st.sidebar:
-    st.title("KITT COMMANDS")
-    st.markdown("---")
-    
-    # 7.1 Text-to-Image Generation
-    with st.expander("🖼️ IMAGE GENERATION"):
-        i_prompt = st.text_area("Image Prompt (English):", placeholder="Describe the image...")
-        if st.button("GENERATE IMAGE"):
-            if i_prompt:
-                play_kitt_scanner_sound()
-                with st.spinner("Rendering Image..."):
-                    try:
-                        output = replicate.run("stability-ai/sdxl:39ed7e2e143169866380c10a402517f6e392576b2c45e85c137452d37c6381e4", input={"prompt": i_prompt})
-                        st.image(output[0], caption="Rendered by KITT")
-                    except Exception as e: st.error(f"Error: {e}")
 
-    # 7.2 Text-to-Video Generation
-    with st.expander("🎬 VIDEO GENERATION"):
-        v_prompt = st.text_area("Video Prompt (English):", placeholder="Describe the video scene...")
-        if st.button("GENERATE VIDEO"):
-            if v_prompt:
-                play_kitt_scanner_sound()
-                with st.spinner("Rendering Video (Takes a few minutes)..."):
-                    try:
-                        output = replicate.run("zsxkib/animate-diff:05f963032d8478413a9686008892120e2e283f6f9765239a0680145b2b2b2025", input={"prompt": v_prompt})
-                        st.video(output[0])
-                    except Exception as e: st.error(f"Error: {e}")
+    st.title("DIAGNOSTICS")
 
-    # 7.3 Code Architect & Builder
-    with st.expander("💻 CODE ARCHITECT"):
-        lang = st.selectbox("Select Core:", ["C++", "Python", "Blender Script"])
-        c_prompt = st.text_input("Code Functionality:")
-        if st.button("BUILD CODE"):
-            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-            res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Write professional {lang} code for: {c_prompt}"}])
-            st.code(res.choices[0].message.content)
+    mode=st.radio("AI CORE",[
+        "Normal Mode",
+        "Pro Mode"
+    ])
 
-    # 7.4 System Capabilities Summary
-    with st.expander("🚀 CAPABILITIES"):
-        st.write("• Dual-Core Generation (Image/Video)\n• Male Neural Voice Engine\n• C++ & Blender Expert\n• YouTube Content Analysis")
+    doc=st.file_uploader("UPLOAD DATA",type=["pdf","txt"])
 
-    st.markdown("---")
-    if st.button("SYSTEM SHUTDOWN"): st.session_state.logged_in = False; st.rerun()
+    extracted=""
 
-# --- 8. MAIN COMMUNICATION HUB ---
-st.markdown(f"<div style='text-align:center; border:1px solid red; padding:15px; border-radius:10px;'>OPERATOR: {st.session_state.user.upper()} | STATUS: ACTIVE</div>", unsafe_allow_html=True)
+    if doc:
 
-# The Dynamic Voice Box
-v_box = st.empty()
-v_box.markdown('<div class="voice-box"><div class="v-bar"></div><div class="v-bar" style="height:40px;"></div><div class="v-bar" style="height:65px;"></div><div class="v-bar" style="height:40px;"></div><div class="v-bar"></div></div>', unsafe_allow_html=True)
+        if doc.type=="application/pdf":
 
-if "messages" not in st.session_state: st.session_state.messages = []
-for m in st.session_state.messages:
-    with st.chat_message(m["role"]): st.markdown(m["content"])
+            reader=PdfReader(doc)
 
-u_input = st.chat_input("State your command...")
+            for p in reader.pages:
+                extracted+=p.extract_text()
 
-if u_input:
-    st.session_state.messages.append({"role": "user", "content": u_input})
-    with st.chat_message("user"): st.markdown(u_input)
+        else:
+            extracted=doc.getvalue().decode()
 
-    with st.chat_message("assistant"):
-        play_kitt_scanner_sound()
-        
-        # Animate visualizer while "thinking/speaking"
-        v_box.markdown('<div class="voice-box"><div class="v-bar v-anim"></div><div class="v-bar v-anim"></div><div class="v-bar v-anim"></div><div class="v-bar v-anim"></div><div class="v-bar v-anim"></div></div>', unsafe_allow_html=True)
-        
-        # Connect to Groq LLM
-        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-        sys_p = "You are MOVIE KITT. Creator: Hasith Heshan. Professional Male Voice. Expert in Blender, C++, and YouTube optimization."
-        resp = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"system","content":sys_p}] + st.session_state.messages[-5:])
-        ans = resp.choices[0].message.content
-        
-        # Audio Generation
-        audio = asyncio.run(generate_male_voice(ans))
-        st.markdown(f'<audio autoplay="true" src="data:audio/mp3;base64,{base64.b64encode(audio).decode()}">', unsafe_allow_html=True)
-        
-        # Typewriter Effect Output
-        ph = st.empty(); full = ""
-        for char in ans:
-            full += char; ph.markdown(full + "▌"); time.sleep(0.015)
-        ph.markdown(full)
-        
-        # Stop animation
-        v_box.markdown('<div class="voice-box"><div class="v-bar"></div><div class="v-bar" style="height:40px;"></div><div class="v-bar" style="height:65px;"></div><div class="v-bar" style="height:40px;"></div><div class="v-bar"></div></div>', unsafe_allow_html=True)
-        st.session_state.messages.append({"role": "assistant", "content": ans})
+    if st.button("SHUTDOWN"):
+
+        st.session_state.logged_in=False
+        st.rerun()
+
+# ---------------- DASHBOARD ----------------
+
+st.markdown(f"""
+<div class="glass-banner">
+
+KITT SYSTEM ONLINE
+
+AUTHORIZED USER : {st.session_state.user}
+
+</div>
+""",unsafe_allow_html=True)
+
+st.markdown("""
+<div class="status-bar">
+
+AI CORE : ACTIVE <br>
+POWER : 98% <br>
+NETWORK : CONNECTED
+
+</div>
+""",unsafe_allow_html=True)
+
+# ---------------- GROQ ----------------
+
+client = Groq(
+    api_key="YOUR_GROQ_API_KEY"
+)
+
+# ---------------- CHAT MEMORY ----------------
+
+if "messages" not in st.session_state:
+
+    st.session_state.messages=[{
+        "role":"assistant",
+        "content":"Hello there, I'm KITT. How can I help you today?"
+    }]
+
+# ---------------- SHOW CHAT ----------------
+
+for msg in st.session_state.messages:
+
+    st.chat_message(msg["role"]).write(msg["content"])
+
+prompt = st.chat_input("Talk with KITT...")
+
+# ---------------- AI RESPONSE ----------------
+
+if prompt:
+
+    st.session_state.messages.append({
+        "role":"user",
+        "content":prompt
+    })
+
+    st.chat_message("user").write(prompt)
+
+    completion = client.chat.completions.create(
+
+        model="llama3-70b-8192",
+
+        messages=st.session_state.messages
+    )
+
+    reply = completion.choices[0].message.content
+
+    st.session_state.messages.append({
+        "role":"assistant",
+        "content":reply
+    })
+
+    st.chat_message("assistant").write(reply)
+
+# ---------------- VOICE ----------------
+
+async def get_voice(text):
+
+    voice="en-IE-ConnorNeural"
+
+    communicate=edge_tts.Communicate(text,voice)
+
+    audio=b""
+
+    async for chunk in communicate.stream():
+
+        if chunk["type"]=="audio":
+            audio+=chunk["data"]
+
+    return audio
+
+if prompt:
+
+    audio_data=asyncio.run(get_voice(reply))
+
+    b64=base64.b64encode(audio_data).decode()
+
+    st.markdown(
+        f'<audio autoplay src="data:audio/mp3;base64,{b64}"></audio>',
+        unsafe_allow_html=True
+    )
