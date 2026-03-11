@@ -8,7 +8,7 @@ import os
 import webbrowser
 from PyPDF2 import PdfReader
 
-# --- 1. Page Configuration & Cyber UI (Enhanced with Cyberpunk Loading) ---
+# --- 1. Page Configuration & Advanced Cyber UI ---
 st.set_page_config(page_title="Alpha AI | Next-Gen", page_icon="⚡", layout="wide")
 
 st.markdown("""
@@ -16,87 +16,47 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Inter:wght@300;900&display=swap');
     
     .stApp { background: #02050a; color: #ffffff; font-family: 'Inter', sans-serif; }
-    
-    /* ALPHA NEON TITLE */
-    .alpha-neon-title {
-        font-size: clamp(2.5em, 8vw, 4em);
-        font-weight: 900;
-        text-align: center;
-        color: #fff;
-        text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff, 0 0 40px #00d4ff;
-        letter-spacing: clamp(5px, 3vw, 12px);
-        font-family: 'Orbitron', sans-serif;
-        margin-bottom: 20px;
-    }
 
-    /* --- CYBER LOADING SCREEN CSS --- */
-    .loader-container {
-        display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh;
-        background: radial-gradient(circle, #051937 0%, #000000 100%);
-    }
-    
-    .loading-text {
-        font-family: 'Orbitron', sans-serif;
-        color: #00d4ff;
-        font-size: 3rem;
-        font-weight: 900;
-        letter-spacing: 15px;
-        text-shadow: 0 0 20px #00d4ff;
-        margin-bottom: 30px;
-        animation: glitch 1s infinite;
-    }
-
-    .progress-track {
-        width: 600px;
-        height: 12px;
-        background: rgba(0, 212, 255, 0.1);
-        border: 1px solid #00d4ff;
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
-        position: relative;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #00d4ff, #005f73);
-        box-shadow: 0 0 20px #00d4ff;
-        transition: width 0.1s ease-out;
-    }
-
-    .system-status {
-        margin-top: 20px;
-        font-family: 'monospace';
-        color: #00d4ff;
-        font-size: 0.9rem;
-        letter-spacing: 2px;
-    }
-
-    @keyframes glitch {
-        0% { transform: translate(0); }
-        20% { transform: translate(-2px, 2px); }
-        40% { transform: translate(-2px, -2px); }
-        60% { transform: translate(2px, 2px); }
-        80% { transform: translate(2px, -2px); }
-        100% { transform: translate(0); }
-    }
-
-    /* GLASS CARD UI */
-    .glass-card {
-        background: rgba(0, 212, 255, 0.05);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(0, 212, 255, 0.2);
+    /* CYBER LOGIN INTERFACE */
+    .login-container {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        height: 100vh; background: radial-gradient(circle, #051937 0%, #000000 100%);
         padding: 20px;
-        border-radius: 20px;
-        margin-bottom: 20px;
     }
     
+    .login-card {
+        background: rgba(0, 212, 255, 0.05);
+        backdrop-filter: blur(25px);
+        border: 1px solid rgba(0, 212, 255, 0.3);
+        padding: 40px; border-radius: 20px;
+        width: 100%; max-width: 500px;
+        text-align: center; box-shadow: 0 0 50px rgba(0, 212, 255, 0.2);
+    }
+
+    .alpha-neon-title {
+        font-size: 3.5rem; font-weight: 900; color: #fff;
+        text-shadow: 0 0 20px #00d4ff, 0 0 40px #00d4ff;
+        letter-spacing: 10px; font-family: 'Orbitron', sans-serif;
+        margin-bottom: 30px;
+    }
+
+    /* CUSTOM BUTTONS (Registration, Login, Bypass) */
+    .stButton>button {
+        width: 100%; border-radius: 10px; height: 50px;
+        font-family: 'Orbitron', sans-serif; transition: 0.3s;
+        text-transform: uppercase; letter-spacing: 2px;
+    }
+    
+    /* SYTEM STATUS FOOTER */
+    .secure-footer {
+        margin-top: 30px; color: #00d4ff; font-family: 'monospace';
+        font-size: 0.8rem; letter-spacing: 3px; opacity: 0.7;
+    }
+
+    /* CHAT & OTHER UI */
     .hasith-badge {
         background: linear-gradient(135deg, #001f3f, #0074d9);
-        padding: 15px;
-        border-radius: 15px;
-        border: 1px solid #00d4ff;
-        text-align: center;
+        padding: 15px; border-radius: 15px; border: 1px solid #00d4ff; text-align: center;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -107,17 +67,10 @@ def execute_system_command(command):
     if "youtube" in cmd and "search" in cmd:
         query = cmd.split("search")[-1].replace("for", "").strip()
         webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
-        return f"හසීත්, මම YouTube හි {query} සෙව්වා. දැන් ඔබට වීඩියෝව තෝරාගත හැකියි."
+        return f"හසීත්, මම YouTube හි {query} සෙව්වා."
     elif "open maps" in cmd or "location" in cmd:
         webbrowser.open("https://www.google.com/maps")
-        return "GPS පද්ධතිය සහ සිතියම් විවෘත කළා, හසීත්."
-    elif "open whatsapp" in cmd:
-        webbrowser.open("https://web.whatsapp.com")
-        return "WhatsApp පණිවිඩ පද්ධතිය සක්‍රීය කළා."
-    elif "search for" in cmd:
-        query = cmd.split("search for")[-1].strip()
-        webbrowser.open(f"https://www.google.com/search?q={query}")
-        return f"මම Google හරහා {query} ගැන තොරතුරු සෙව්වා."
+        return "GPS පද්ධතිය විවෘත කළා."
     return None
 
 # --- 3. Core Functions (Unchanged) ---
@@ -129,7 +82,6 @@ async def speak_alpha(text):
         if chunk["type"] == "audio": audio_data += chunk["data"]
     b64 = base64.b64encode(audio_data).decode()
     st.markdown(f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
-    return len(audio_data) / 15500
 
 def type_effect(text, container):
     full = ""
@@ -137,38 +89,58 @@ def type_effect(text, container):
         full += char
         container.markdown(f"<div style='font-size:1.1em;'>{full} ⚡</div>", unsafe_allow_html=True)
         time.sleep(0.01)
-    container.markdown(text)
 
-# --- 4. Initialization & NEW CYBER LOADING SCREEN ---
+# --- 4. Cyber Loading Screen ---
 if "loaded" not in st.session_state:
     placeholder = st.empty()
     for i in range(101):
-        # අර පින්තූරයේ තියෙන විදියටම ලස්සන Loading Bar එකක්
         placeholder.markdown(f"""
-            <div class="loader-container">
-                <div class="loading-text">LOADING...</div>
-                <div class="progress-track">
-                    <div class="progress-fill" style="width: {i}%;"></div>
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:90vh; background:#000;">
+                <div style="color:#00d4ff; font-family:'Orbitron'; font-size:2rem; margin-bottom:20px;">INITIALIZING ALPHA CORE...</div>
+                <div style="width:500px; height:5px; background:rgba(0,212,255,0.1); border-radius:10px; overflow:hidden;">
+                    <div style="width:{i}%; height:100%; background:#00d4ff; box-shadow:0 0 15px #00d4ff;"></div>
                 </div>
-                <div class="system-status">ALPHA CORE V2.0 INITIALIZING: {i}%</div>
             </div>
         """, unsafe_allow_html=True)
-        time.sleep(0.04) # තත්පර 4කට ආසන්න කාලයක්
-    st.session_state.loaded = True
-    st.rerun()
+        time.sleep(0.03)
+    st.session_state.loaded = True; st.rerun()
 
-# --- 5. Security & Login ---
+# --- 5. NEW ALPHA CORE LOGIN SCREEN ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
+
 if not st.session_state.logged_in:
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.markdown('<div class="alpha-neon-title">ALPHA CORE</div>', unsafe_allow_html=True)
-    bypass = st.text_input("Master Key", type="password")
-    if st.button("Unlock Alpha"):
-        if bypass == "Hasith12378": st.session_state.logged_in = True; st.rerun()
+    
+    # Login Card
+    with st.container():
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        
+        u_name = st.text_input("Username", placeholder="Operator Name")
+        bypass = st.text_input("Password / Master Key", type="password", placeholder="••••••••")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("👑 New Reg"): st.toast("Access Restricted to Creator.")
+        with col2:
+            if st.button("🛡️ LOGIN"):
+                if bypass == "Hasith12378": 
+                    st.session_state.logged_in = True
+                    st.rerun()
+                else: st.error("Access Denied")
+        with col3:
+            if st.button("🧪 Bypass"): st.info("Bypass Key Required")
+            
+        st.markdown('<div class="secure-footer">SECURE ACCESS SYSTEM V2.0</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True) # End card
+    
+    st.markdown('</div>', unsafe_allow_html=True) # End container
     st.stop()
 
-# --- 6. Sidebar & UI ---
+# --- 6. Main Interface (Unchanged Logic) ---
 with st.sidebar:
-    st.markdown(f'<div class="hasith-badge"><b>HASITH</b><br><small>SYSTEM ARCHITECT</small></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="hasith-badge"><b>HASITH HESHAN</b><br><small>SYSTEM ARCHITECT</small></div>', unsafe_allow_html=True)
     mode = st.radio("Intelligence Unit", ["Llama 3.3 (Normal)", "GPT OSS 120B (Pro)"])
     if st.button("🔌 Log Out"): st.session_state.logged_in = False; st.rerun()
 
