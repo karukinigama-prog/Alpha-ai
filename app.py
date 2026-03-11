@@ -17,6 +17,13 @@ st.markdown("""
     
     .stApp { background: #02050a; color: #ffffff; font-family: 'Inter', sans-serif; }
 
+    /* --- IMPORTANT: REMOVING DICTATION WIDGET & OVERLAYS --- */
+    iframe, .stDeployButton, [data-testid="stHeader"], #tabs-bui3-tabpanel-0 > div > div > div > div.stCustomComponentV1 {
+        display: none !important;
+    }
+    header {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+
     /* --- CYBER LOADING SCREEN CSS --- */
     .loader-container {
         display: flex; flex-direction: column; align-items: center; justify-content: center; 
