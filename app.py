@@ -5,123 +5,196 @@ import base64
 import asyncio
 import edge_tts
 import os
+import webbrowser
+from PyPDF2 import PdfReader
 
-# --- 1. CORE SYSTEM CONFIG ---
-st.set_page_config(page_title="ALPHA AI | ELITE", page_icon="🏎️", layout="wide")
+# --- 1. Page Configuration & Cyber UI (Enhanced with Cyberpunk Loading) ---
+st.set_page_config(page_title="Alpha AI | Next-Gen", page_icon="⚡", layout="wide")
 
-# --- 2. THE SIGNATURE IMPERIAL UI (RED & BLACK) ---
 st.markdown("""
     <style>
-    .stApp { background: #000; color: #fff; font-family: 'Share Tech Mono', monospace; }
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Inter:wght@300;900&display=swap');
     
-    /* ALPHA SCANNER - 100 LIGHT BARS */
-    .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh; }
-    .alpha-title { font-size: 80px; color: red; text-shadow: 0 0 30px red; letter-spacing: 15px; font-weight: 900; }
-    .scanner-track { width: 800px; height: 30px; background: #050505; border: 1px solid #333; display: flex; gap: 2px; padding: 4px; overflow: hidden; }
-    .bar { width: 6px; height: 100%; background: #1a0000; transition: 0.1s; }
-    .bar.active { background: #ff0000; box-shadow: 0 0 15px #ff0000; }
+    .stApp { background: #02050a; color: #ffffff; font-family: 'Inter', sans-serif; }
+    
+    /* ALPHA NEON TITLE */
+    .alpha-neon-title {
+        font-size: clamp(2.5em, 8vw, 4em);
+        font-weight: 900;
+        text-align: center;
+        color: #fff;
+        text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff, 0 0 40px #00d4ff;
+        letter-spacing: clamp(5px, 3vw, 12px);
+        font-family: 'Orbitron', sans-serif;
+        margin-bottom: 20px;
+    }
 
-    /* VOICE ORB VISUALIZER */
-    .voice-orb { display: flex; align-items: center; justify-content: center; gap: 5px; height: 60px; margin: 20px 0; }
-    .orb-bar { width: 8px; background: #ff0000; box-shadow: 0 0 10px #ff0000; border-radius: 5px; height: 10px; }
-    @keyframes pulse { 0% { height: 10px; } 50% { height: 50px; } 100% { height: 15px; } }
-    .pulse-anim { animation: pulse 0.4s infinite ease-in-out; }
+    /* --- CYBER LOADING SCREEN CSS --- */
+    .loader-container {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh;
+        background: radial-gradient(circle, #051937 0%, #000000 100%);
+    }
     
-    /* SIDEBAR STYLING */
-    section[data-testid="stSidebar"] { background-color: #050505 !important; border-right: 2px solid red; }
+    .loading-text {
+        font-family: 'Orbitron', sans-serif;
+        color: #00d4ff;
+        font-size: 3rem;
+        font-weight: 900;
+        letter-spacing: 15px;
+        text-shadow: 0 0 20px #00d4ff;
+        margin-bottom: 30px;
+        animation: glitch 1s infinite;
+    }
+
+    .progress-track {
+        width: 600px;
+        height: 12px;
+        background: rgba(0, 212, 255, 0.1);
+        border: 1px solid #00d4ff;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        position: relative;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #00d4ff, #005f73);
+        box-shadow: 0 0 20px #00d4ff;
+        transition: width 0.1s ease-out;
+    }
+
+    .system-status {
+        margin-top: 20px;
+        font-family: 'monospace';
+        color: #00d4ff;
+        font-size: 0.9rem;
+        letter-spacing: 2px;
+    }
+
+    @keyframes glitch {
+        0% { transform: translate(0); }
+        20% { transform: translate(-2px, 2px); }
+        40% { transform: translate(-2px, -2px); }
+        60% { transform: translate(2px, 2px); }
+        80% { transform: translate(2px, -2px); }
+        100% { transform: translate(0); }
+    }
+
+    /* GLASS CARD UI */
+    .glass-card {
+        background: rgba(0, 212, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        padding: 20px;
+        border-radius: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .hasith-badge {
+        background: linear-gradient(135deg, #001f3f, #0074d9);
+        padding: 15px;
+        border-radius: 15px;
+        border: 1px solid #00d4ff;
+        text-align: center;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 7-SECOND ALPHA BOOT SEQUENCE ---
-if "booted" not in st.session_state:
+# --- 2. OS & Web Controller Logic (Unchanged) ---
+def execute_system_command(command):
+    cmd = command.lower()
+    if "youtube" in cmd and "search" in cmd:
+        query = cmd.split("search")[-1].replace("for", "").strip()
+        webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
+        return f"හසීත්, මම YouTube හි {query} සෙව්වා. දැන් ඔබට වීඩියෝව තෝරාගත හැකියි."
+    elif "open maps" in cmd or "location" in cmd:
+        webbrowser.open("https://www.google.com/maps")
+        return "GPS පද්ධතිය සහ සිතියම් විවෘත කළා, හසීත්."
+    elif "open whatsapp" in cmd:
+        webbrowser.open("https://web.whatsapp.com")
+        return "WhatsApp පණිවිඩ පද්ධතිය සක්‍රීය කළා."
+    elif "search for" in cmd:
+        query = cmd.split("search for")[-1].strip()
+        webbrowser.open(f"https://www.google.com/search?q={query}")
+        return f"මම Google හරහා {query} ගැන තොරතුරු සෙව්වා."
+    return None
+
+# --- 3. Core Functions (Unchanged) ---
+async def speak_alpha(text):
+    VOICE = "en-US-SteffanNeural"
+    communicate = edge_tts.Communicate(text, VOICE)
+    audio_data = b""
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio": audio_data += chunk["data"]
+    b64 = base64.b64encode(audio_data).decode()
+    st.markdown(f'<audio autoplay="true" src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
+    return len(audio_data) / 15500
+
+def type_effect(text, container):
+    full = ""
+    for char in text:
+        full += char
+        container.markdown(f"<div style='font-size:1.1em;'>{full} ⚡</div>", unsafe_allow_html=True)
+        time.sleep(0.01)
+    container.markdown(text)
+
+# --- 4. Initialization & NEW CYBER LOADING SCREEN ---
+if "loaded" not in st.session_state:
     placeholder = st.empty()
-    for i in range(45):
-        bars_html = "".join([f'<div class="bar {"active" if abs((j%100)-(i*4.5%100)) < 15 else ""}"></div>' for j in range(100)])
-        placeholder.markdown(f'<div class="loader-container"><div class="alpha-title">ALPHA AI</div><div class="scanner-track">{bars_html}</div><div style="color:red; margin-top:15px;">INITIALIZING SUPER ANIMATION ENGINE...</div></div>', unsafe_allow_html=True)
-        time.sleep(0.1)
-    st.session_state.booted = True
+    for i in range(101):
+        # අර පින්තූරයේ තියෙන විදියටම ලස්සන Loading Bar එකක්
+        placeholder.markdown(f"""
+            <div class="loader-container">
+                <div class="loading-text">LOADING...</div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: {i}%;"></div>
+                </div>
+                <div class="system-status">ALPHA CORE V2.0 INITIALIZING: {i}%</div>
+            </div>
+        """, unsafe_allow_html=True)
+        time.sleep(0.04) # තත්පර 4කට ආසන්න කාලයක්
+    st.session_state.loaded = True
     st.rerun()
 
-# --- 4. CREATOR AUTHENTICATION ---
-if "auth" not in st.session_state: st.session_state.auth = False
-if not st.session_state.auth:
-    st.title("🛡️ ALPHA SYSTEM ACCESS")
-    key = st.text_input("ENTER MASTER KEY:", type="password")
-    if st.button("AUTHENTICATE"):
-        if key == "I CREATED YOU":
-            st.session_state.auth = True
-            st.session_state.user = "Hasith Heshan"
-            st.rerun()
+# --- 5. Security & Login ---
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if not st.session_state.logged_in:
+    st.markdown('<div class="alpha-neon-title">ALPHA CORE</div>', unsafe_allow_html=True)
+    bypass = st.text_input("Master Key", type="password")
+    if st.button("Unlock Alpha"):
+        if bypass == "Hasith12378": st.session_state.logged_in = True; st.rerun()
     st.stop()
 
-# --- 5. NEURAL VOICE ENGINE ---
-async def alpha_speak(text):
-    is_sinhala = any('\u0d80' <= char <= '\u0dff' for char in text)
-    voice = "si-LK-SameerNeural" if is_sinhala else "en-IE-ConnorNeural"
-    comm = edge_tts.Communicate(text, voice)
-    audio = b""
-    async for chunk in comm.stream():
-        if chunk["type"] == "audio": audio += chunk["data"]
-    return audio
-
-# --- 6. COMMAND CENTER (SIDEBAR) ---
+# --- 6. Sidebar & UI ---
 with st.sidebar:
-    st.header("COMMAND CENTER")
-    st.markdown("---")
-    
-    with st.expander("🛠️ BLENDER TOOLKIT"):
-        st.write("• Auto-Rigging Scripts\n• IK/FK Switcher\n• Weight Paint Optimizer")
-        if st.button("GENERATE RIG SCRIPT"): st.code("# Blender Rigging Template\nimport bpy")
+    st.markdown(f'<div class="hasith-badge"><b>HASITH</b><br><small>SYSTEM ARCHITECT</small></div>', unsafe_allow_html=True)
+    mode = st.radio("Intelligence Unit", ["Llama 3.3 (Normal)", "GPT OSS 120B (Pro)"])
+    if st.button("🔌 Log Out"): st.session_state.logged_in = False; st.rerun()
 
-    with st.expander("📺 YOUTUBE SEO (SUPER ANIMATION)"):
-        st.text_input("Video Topic:")
-        if st.button("GET TAGS"): st.success("Tags Generated for YouTube!")
+st.markdown('<div class="alpha-neon-title">ALPHA AI</div>', unsafe_allow_html=True)
 
-    with st.expander("💻 CODE ARCHITECT"):
-        lang = st.selectbox("Language", ["Python", "C++", "Streamlit"])
-        if st.button("BUILD"): st.code(f"# Alpha {lang} Architect Active")
+if "messages" not in st.session_state: st.session_state.messages = []
+for m in st.session_state.messages:
+    with st.chat_message(m["role"]): st.markdown(m["content"])
 
-    st.markdown("---")
-    if st.button("FORCE SHUTDOWN"):
-        st.session_state.auth = False
-        st.rerun()
-
-# --- 7. MAIN INTERFACE ---
-st.markdown(f"<div style='text-align:center; border:1px solid red; padding:10px; border-radius:5px;'>OPERATOR: {st.session_state.user.upper()} | STATUS: STABLE</div>", unsafe_allow_html=True)
-
-orb_placeholder = st.empty()
-orb_placeholder.markdown('<div class="voice-orb"><div class="orb-bar"></div><div class="orb-bar" style="height:30px;"></div><div class="orb-bar" style="height:45px;"></div><div class="orb-bar" style="height:30px;"></div><div class="orb-bar"></div></div>', unsafe_allow_html=True)
-
-if "chat_history" not in st.session_state: st.session_state.chat_history = []
-for msg in st.session_state.chat_history:
-    with st.chat_message(msg["role"]): st.markdown(msg["content"])
-
-user_cmd = st.chat_input("Command Alpha AI...")
-
-if user_cmd:
-    st.session_state.chat_history.append({"role": "user", "content": user_cmd})
-    with st.chat_message("user"): st.markdown(user_cmd)
+user_input = st.chat_input("State command, Hasith...")
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"): st.markdown(user_input)
 
     with st.chat_message("assistant"):
-        orb_placeholder.markdown('<div class="voice-orb"><div class="orb-bar pulse-anim"></div><div class="orb-bar pulse-anim"></div><div class="orb-bar pulse-anim"></div><div class="orb-bar pulse-anim"></div><div class="orb-bar pulse-anim"></div></div>', unsafe_allow_html=True)
+        text_ph = st.empty()
+        auto_ans = execute_system_command(user_input)
+        if auto_ans:
+            ans = auto_ans
+        else:
+            with st.spinner("Neural thinking..."):
+                client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+                model = "openai/gpt-oss-120b" if "Pro" in mode else "llama-3.3-70b-versatile"
+                res = client.chat.completions.create(model=model, messages=[{"role":"system","content":"You are Alpha AI developed by Hasith."}] + st.session_state.messages[-5:])
+                ans = res.choices[0].message.content
         
-        # Groq Llama Integration
-        client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "You are Alpha AI. Created by Hasith Heshan. Expert in 3D Modeling (Blender) and Python."}] + st.session_state.chat_history[-5:]
-        )
-        answer = response.choices[0].message.content
-        
-        # Audio playback
-        audio_content = asyncio.run(alpha_speak(answer))
-        st.markdown(f'<audio autoplay="true" src="data:audio/mp3;base64,{base64.b64encode(audio_content).decode()}">', unsafe_allow_html=True)
-        
-        # Text animation
-        ph = st.empty(); full_txt = ""
-        for c in answer:
-            full_txt += c; ph.markdown(full_txt + "▌"); time.sleep(0.01)
-        ph.markdown(full_txt)
-        
-        orb_placeholder.markdown('<div class="voice-orb"><div class="orb-bar"></div><div class="orb-bar" style="height:30px;"></div><div class="orb-bar" style="height:45px;"></div><div class="orb-bar" style="height:30px;"></div><div class="orb-bar"></div></div>', unsafe_allow_html=True)
-        st.session_state.chat_history.append({"role": "assistant", "content": answer})
+        asyncio.run(speak_alpha(ans))
+        type_effect(ans, text_ph)
+        st.session_state.messages.append({"role": "assistant", "content": ans})
