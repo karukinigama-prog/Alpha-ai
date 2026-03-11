@@ -17,43 +17,46 @@ st.markdown("""
     
     .stApp { background: #02050a; color: #ffffff; font-family: 'Inter', sans-serif; }
 
-    /* CYBER LOGIN INTERFACE */
+    /* --- CYBER LOADING SCREEN CSS --- */
+    .loader-container {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        height: 90vh; background: #000;
+    }
+    .loading-text {
+        font-family: 'Orbitron', sans-serif; color: #00d4ff; font-size: 2.5rem;
+        font-weight: 900; letter-spacing: 12px; text-shadow: 0 0 20px #00d4ff;
+        margin-bottom: 30px;
+    }
+    .progress-track {
+        width: 500px; height: 6px; background: rgba(0, 212, 255, 0.1);
+        border-radius: 10px; overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%; background: #00d4ff; box-shadow: 0 0 15px #00d4ff;
+        transition: width 0.1s ease-out;
+    }
+
+    /* --- CYBER LOGIN INTERFACE --- */
     .login-container {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         height: 100vh; background: radial-gradient(circle, #051937 0%, #000000 100%);
-        padding: 20px;
     }
-    
     .login-card {
-        background: rgba(0, 212, 255, 0.05);
-        backdrop-filter: blur(25px);
-        border: 1px solid rgba(0, 212, 255, 0.3);
-        padding: 40px; border-radius: 20px;
-        width: 100%; max-width: 500px;
+        background: rgba(0, 212, 255, 0.05); backdrop-filter: blur(25px);
+        border: 1px solid rgba(0, 212, 255, 0.3); padding: 40px;
+        border-radius: 20px; width: 100%; max-width: 500px;
         text-align: center; box-shadow: 0 0 50px rgba(0, 212, 255, 0.2);
     }
-
     .alpha-neon-title {
         font-size: 3.5rem; font-weight: 900; color: #fff;
         text-shadow: 0 0 20px #00d4ff, 0 0 40px #00d4ff;
         letter-spacing: 10px; font-family: 'Orbitron', sans-serif;
         margin-bottom: 30px;
     }
-
-    /* CUSTOM BUTTONS (Registration, Login, Bypass) */
-    .stButton>button {
-        width: 100%; border-radius: 10px; height: 50px;
-        font-family: 'Orbitron', sans-serif; transition: 0.3s;
-        text-transform: uppercase; letter-spacing: 2px;
-    }
-    
-    /* SYTEM STATUS FOOTER */
     .secure-footer {
         margin-top: 30px; color: #00d4ff; font-family: 'monospace';
         font-size: 0.8rem; letter-spacing: 3px; opacity: 0.7;
     }
-
-    /* CHAT & OTHER UI */
     .hasith-badge {
         background: linear-gradient(135deg, #001f3f, #0074d9);
         padding: 15px; border-radius: 15px; border: 1px solid #00d4ff; text-align: center;
@@ -90,52 +93,49 @@ def type_effect(text, container):
         container.markdown(f"<div style='font-size:1.1em;'>{full} ⚡</div>", unsafe_allow_html=True)
         time.sleep(0.01)
 
-# --- 4. Cyber Loading Screen ---
+# --- 4. THE PROGRESSIVE LOADING SCREEN ---
 if "loaded" not in st.session_state:
-    placeholder = st.empty()
+    l_ph = st.empty()
     for i in range(101):
-        placeholder.markdown(f"""
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:90vh; background:#000;">
-                <div style="color:#00d4ff; font-family:'Orbitron'; font-size:2rem; margin-bottom:20px;">INITIALIZING ALPHA CORE...</div>
-                <div style="width:500px; height:5px; background:rgba(0,212,255,0.1); border-radius:10px; overflow:hidden;">
-                    <div style="width:{i}%; height:100%; background:#00d4ff; box-shadow:0 0 15px #00d4ff;"></div>
+        l_ph.markdown(f"""
+            <div class="loader-container">
+                <div class="loading-text">INITIALIZING ALPHA CORE...</div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: {i}%;"></div>
                 </div>
+                <div style="color:#00d4ff; margin-top:15px; font-family:monospace;">SYSTEM BOOT: {i}%</div>
             </div>
         """, unsafe_allow_html=True)
-        time.sleep(0.03)
+        time.sleep(0.04)
     st.session_state.loaded = True; st.rerun()
 
-# --- 5. NEW ALPHA CORE LOGIN SCREEN ---
+# --- 5. THE ADVANCED LOGIN SCREEN ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.markdown('<div class="alpha-neon-title">ALPHA CORE</div>', unsafe_allow_html=True)
     
-    # Login Card
     with st.container():
         st.markdown('<div class="login-card">', unsafe_allow_html=True)
-        
         u_name = st.text_input("Username", placeholder="Operator Name")
-        bypass = st.text_input("Password / Master Key", type="password", placeholder="••••••••")
+        bypass = st.text_input("Master Key", type="password", placeholder="••••••••")
         
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("👑 New Reg"): st.toast("Access Restricted to Creator.")
-        with col2:
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("👑 New Reg"): st.toast("Creator Access Only")
+        with c2:
             if st.button("🛡️ LOGIN"):
                 if bypass == "Hasith12378": 
                     st.session_state.logged_in = True
                     st.rerun()
                 else: st.error("Access Denied")
-        with col3:
-            if st.button("🧪 Bypass"): st.info("Bypass Key Required")
+        with c3:
+            if st.button("🧪 Bypass"): st.info("Key Required")
             
         st.markdown('<div class="secure-footer">SECURE ACCESS SYSTEM V2.0</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True) # End card
-    
-    st.markdown('</div>', unsafe_allow_html=True) # End container
+        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
 # --- 6. Main Interface (Unchanged Logic) ---
@@ -161,7 +161,7 @@ if user_input:
         if auto_ans:
             ans = auto_ans
         else:
-            with st.spinner("Neural thinking..."):
+            with st.spinner("Thinking..."):
                 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
                 model = "openai/gpt-oss-120b" if "Pro" in mode else "llama-3.3-70b-versatile"
                 res = client.chat.completions.create(model=model, messages=[{"role":"system","content":"You are Alpha AI developed by Hasith."}] + st.session_state.messages[-5:])
