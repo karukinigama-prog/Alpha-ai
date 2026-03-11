@@ -1,9 +1,4 @@
 streamlit
 groq
-elevenlabs
-duckduckgo_search
+edge-tts
 PyPDF2
-requests
-pandas
-plotly
-pygame
