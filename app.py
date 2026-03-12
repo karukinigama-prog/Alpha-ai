@@ -5,23 +5,22 @@ import edge_tts
 from PyPDF2 import PdfReader
 from bs4 import BeautifulSoup
 from streamlit_mic_recorder import mic_recorder
-from email_validator import validate_email, EmailNotValidError
+from email_validator import validate_email
 
-# =========================
+# -----------------------
 # Page Config
-# =========================
-st.set_page_config(page_title="Alpha AI | Jarvis v3", page_icon="⚡", layout="wide")
+# -----------------------
+st.set_page_config(page_title="Alpha AI | Jarvis v3.2", page_icon="⚡", layout="wide")
 
-# =========================
+# -----------------------
 # CSS & Cyber UI
-# =========================
+# -----------------------
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Inter:wght@300;900&display=swap');
-
 .stApp{background:#02050a;color:white;font-family:'Inter',sans-serif;}
 .alpha-title{font-size:5vw;text-align:center;font-weight:900;letter-spacing:0.5vw;text-shadow:0 0 25px #00d4ff;}
-.chat-box{background:rgba(0,212,255,0.05);padding:2vw;border-radius:2vw;border:1px solid rgba(0,212,255,0.2);margin:2vw 0;}
+.chat-box{background:rgba(0,212,255,0.05);padding:2vw;border-radius:2vw;border:1px solid rgba(0,212,255,0.2);margin:2vw 0;max-height:70vh;overflow-y:auto;}
 .stButton>button{border-radius:1vw;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);color:white;font-size:1vw;}
 .stButton>button:hover{background:#00d4ff;color:black;box-shadow:0 0 15px #00d4ff;}
 [data-testid="stSidebar"]{background:#020913;border-right:1px solid rgba(0,212,255,0.3);font-size:1vw;}
@@ -33,18 +32,19 @@ input[type=text], input[type=password]{border-radius:1vw;padding:0.8vw;width:90%
 </style>
 """, unsafe_allow_html=True)
 
-# =========================
+# -----------------------
 # Session State
-# =========================
+# -----------------------
 if "messages" not in st.session_state: st.session_state.messages=[]
 if "memory" not in st.session_state: st.session_state.memory=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "loaded" not in st.session_state: st.session_state.loaded=False
 if "user_name" not in st.session_state: st.session_state.user_name="Hasith"
+if "email_logged" not in st.session_state: st.session_state.email_logged=False
 
-# =========================
+# -----------------------
 # Loading Screen
-# =========================
+# -----------------------
 if not st.session_state.loaded:
     l_ph=st.empty()
     for i in range(101):
@@ -61,29 +61,31 @@ if not st.session_state.loaded:
     st.session_state.loaded=True
     st.rerun()
 
-# =========================
-# Login Screen
-# =========================
-if not st.session_state.logged_in:
+# -----------------------
+# One-Time Login Screen
+# -----------------------
+if not st.session_state.logged_in or not st.session_state.email_logged:
     st.markdown("<h1 class='alpha-title'>ALPHA CORE</h1>", unsafe_allow_html=True)
     email = st.text_input("Enter your email", placeholder="hasith@example.com")
     password = st.text_input("Master Key", type="password", placeholder="••••••••")
+    
     if st.button("🛡️ LOGIN"):
         try:
-            valid=validate_email(email)
+            valid = validate_email(email)
             st.session_state.user_name = valid.email.split("@")[0].capitalize()
             if password=="Hasith12378":
                 st.session_state.logged_in=True
+                st.session_state.email_logged=True
                 st.rerun()
             else:
                 st.error("Access Denied")
-        except EmailNotValidError as e:
+        except:
             st.error("Invalid Email")
     st.stop()
 
-# =========================
+# -----------------------
 # Voice Input
-# =========================
+# -----------------------
 def browser_voice_input():
     audio=mic_recorder(start_prompt="🎤 Start", stop_prompt="⏹ Stop", just_once=True, key="recorder")
     if audio:
@@ -95,31 +97,38 @@ def browser_voice_input():
         return resp.json().get("text","")
     return None
 
-# =========================
-# Edge TTS
-# =========================
+# -----------------------
+# Edge TTS (safe fallback)
+# -----------------------
 async def speak_alpha(text):
-    voice="en-US-SteffanNeural"
-    comm=edge_tts.Communicate(text,voice)
-    audio=b""
-    async for chunk in comm.stream():
-        if chunk["type"]=="audio": audio+=chunk["data"]
-    b64=base64.b64encode(audio).decode()
-    st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">',unsafe_allow_html=True)
+    try:
+        voice = "en-US-SteffanNeural"
+        safe_text = text.encode("ascii", errors="ignore").decode()
+        if not safe_text.strip(): return
+        comm = edge_tts.Communicate(safe_text, voice)
+        audio = b""
+        async for chunk in comm.stream():
+            if chunk["type"] == "audio": audio += chunk["data"]
+        if audio:
+            b64 = base64.b64encode(audio).decode()
+            st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
+    except:
+        st.warning("⚡ TTS failed, proceeding without voice output.")
 
-# =========================
+# -----------------------
 # File Upload
-# =========================
+# -----------------------
 def read_file(upload):
     if upload.name.endswith(".pdf"):
-        reader=PdfReader(upload)
-        text="".join([p.extract_text() for p in reader.pages])
+        reader = PdfReader(upload)
+        text = "".join([p.extract_text() for p in reader.pages])
         return text[:4000]
-    else: return upload.read().decode()
+    else:
+        return upload.read().decode()
 
-# =========================
+# -----------------------
 # Internet Search
-# =========================
+# -----------------------
 def internet_search(query):
     url=f"https://www.google.com/search?q={query}"
     headers={"User-Agent":"Mozilla/5.0"}
@@ -128,9 +137,9 @@ def internet_search(query):
     results=[g.text for g in soup.select("div.BNeawe")[:5]]
     return "\n".join(results)
 
-# =========================
+# -----------------------
 # Plugin Commands
-# =========================
+# -----------------------
 def system_command(cmd):
     c=cmd.lower()
     if "youtube" in c: webbrowser.open("https://youtube.com"); return "Opening YouTube"
@@ -138,9 +147,9 @@ def system_command(cmd):
     if "google" in c: webbrowser.open("https://google.com"); return "Opening Google"
     return None
 
-# =========================
+# -----------------------
 # Groq AI Chat
-# =========================
+# -----------------------
 client=Groq(api_key=st.secrets["GROQ_API_KEY"])
 def ask_ai(prompt, mode):
     memory="\n".join(st.session_state.memory[-5:])
@@ -151,9 +160,9 @@ def ask_ai(prompt, mode):
     res=client.chat.completions.create(model=model, messages=messages)
     return res.choices[0].message.content
 
-# =========================
+# -----------------------
 # Sidebar
-# =========================
+# -----------------------
 with st.sidebar:
     st.markdown(f"## Hi {st.session_state.user_name}")
     st.caption("System Architect")
@@ -172,11 +181,14 @@ with st.sidebar:
         st.success("File loaded into memory")
     st.divider()
     if st.button("Clear Memory"): st.session_state.memory=[]
-    if st.button("Log Out"): st.session_state.logged_in=False; st.rerun()
+    if st.button("Log Out"): 
+        st.session_state.logged_in=False
+        st.session_state.email_logged=False
+        st.rerun()
 
-# =========================
+# -----------------------
 # Main Chat
-# =========================
+# -----------------------
 st.markdown(f"<h2 style='color:#00d4ff'>Hi {st.session_state.user_name}, How can I help today?</h2>", unsafe_allow_html=True)
 st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
 
