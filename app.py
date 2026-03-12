@@ -1,47 +1,31 @@
 import streamlit as st
 from groq import Groq
-import time
-import base64
-import asyncio
+import time, base64, asyncio, requests, webbrowser
 import edge_tts
-import requests
 from PyPDF2 import PdfReader
 from bs4 import BeautifulSoup
 from streamlit_mic_recorder import mic_recorder
-import webbrowser
+from email_validator import validate_email, EmailNotValidError
 
-# ======================================
+# =========================
 # Page Config
-# ======================================
-st.set_page_config(page_title="Alpha AI | Next-Gen", page_icon="⚡", layout="wide")
+# =========================
+st.set_page_config(page_title="Alpha AI | Jarvis v3", page_icon="⚡", layout="wide")
 
-# ======================================
-# CSS & Cyber UI (Responsive + Fullscreen)
-# ======================================
+# =========================
+# CSS & Cyber UI
+# =========================
 st.markdown("""
 <style>
-/* Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Inter:wght@300;900&display=swap');
 
-/* App base */
 .stApp{background:#02050a;color:white;font-family:'Inter',sans-serif;}
 .alpha-title{font-size:5vw;text-align:center;font-weight:900;letter-spacing:0.5vw;text-shadow:0 0 25px #00d4ff;}
-
-/* Chat box */
 .chat-box{background:rgba(0,212,255,0.05);padding:2vw;border-radius:2vw;border:1px solid rgba(0,212,255,0.2);margin:2vw 0;}
-
-/* Buttons */
 .stButton>button{border-radius:1vw;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);color:white;font-size:1vw;}
 .stButton>button:hover{background:#00d4ff;color:black;box-shadow:0 0 15px #00d4ff;}
-
-/* Sidebar */
 [data-testid="stSidebar"]{background:#020913;border-right:1px solid rgba(0,212,255,0.3);font-size:1vw;}
-[data-testid="stSidebar"] .stRadio label{font-size:1vw;}
-
-/* Input */
-input[type=text], input[type=password]{border-radius:1vw; padding:0.8vw; width:90%;}
-
-/* Loading screen */
+input[type=text], input[type=password]{border-radius:1vw;padding:0.8vw;width:90%;}
 .loader-container{display:flex;flex-direction:column;align-items:center;justify-content:center;height:90vh;background:#000;}
 .loading-text{font-family:'Orbitron',sans-serif;color:#00d4ff;font-size:3vw;font-weight:900;letter-spacing:0.8vw;text-shadow:0 0 20px #00d4ff;margin-bottom:2vw;}
 .progress-track{width:50vw;height:1vw;background:rgba(0,212,255,0.1);border-radius:1vw;overflow:hidden;}
@@ -49,19 +33,20 @@ input[type=text], input[type=password]{border-radius:1vw; padding:0.8vw; width:9
 </style>
 """, unsafe_allow_html=True)
 
-# ======================================
+# =========================
 # Session State
-# ======================================
+# =========================
 if "messages" not in st.session_state: st.session_state.messages=[]
 if "memory" not in st.session_state: st.session_state.memory=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "loaded" not in st.session_state: st.session_state.loaded=False
+if "user_name" not in st.session_state: st.session_state.user_name="Hasith"
 
-# ======================================
-# Animated Loading Screen
-# ======================================
+# =========================
+# Loading Screen
+# =========================
 if not st.session_state.loaded:
-    l_ph = st.empty()
+    l_ph=st.empty()
     for i in range(101):
         l_ph.markdown(f"""
         <div class='loader-container'>
@@ -76,28 +61,29 @@ if not st.session_state.loaded:
     st.session_state.loaded=True
     st.rerun()
 
-# ======================================
+# =========================
 # Login Screen
-# ======================================
+# =========================
 if not st.session_state.logged_in:
     st.markdown("<h1 class='alpha-title'>ALPHA CORE</h1>", unsafe_allow_html=True)
-    username = st.text_input("Username", placeholder="Hasith")
+    email = st.text_input("Enter your email", placeholder="hasith@example.com")
     password = st.text_input("Master Key", type="password", placeholder="••••••••")
-    c1,c2,c3 = st.columns([1,1,1])
-    with c1: 
-        if st.button("👑 New Registration"): st.toast("Creator Access Only")
-    with c2:
-        if st.button("🛡️ LOGIN"):
+    if st.button("🛡️ LOGIN"):
+        try:
+            valid=validate_email(email)
+            st.session_state.user_name = valid.email.split("@")[0].capitalize()
             if password=="Hasith12378":
-                st.session_state.logged_in=True; st.rerun()
-            else: st.error("Access Denied")
-    with c3:
-        if st.button("🧪 Bypass"): st.info("Key Required")
+                st.session_state.logged_in=True
+                st.rerun()
+            else:
+                st.error("Access Denied")
+        except EmailNotValidError as e:
+            st.error("Invalid Email")
     st.stop()
 
-# ======================================
-# Browser Voice Input
-# ======================================
+# =========================
+# Voice Input
+# =========================
 def browser_voice_input():
     audio=mic_recorder(start_prompt="🎤 Start", stop_prompt="⏹ Stop", just_once=True, key="recorder")
     if audio:
@@ -109,9 +95,9 @@ def browser_voice_input():
         return resp.json().get("text","")
     return None
 
-# ======================================
+# =========================
 # Edge TTS
-# ======================================
+# =========================
 async def speak_alpha(text):
     voice="en-US-SteffanNeural"
     comm=edge_tts.Communicate(text,voice)
@@ -121,9 +107,9 @@ async def speak_alpha(text):
     b64=base64.b64encode(audio).decode()
     st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">',unsafe_allow_html=True)
 
-# ======================================
+# =========================
 # File Upload
-# ======================================
+# =========================
 def read_file(upload):
     if upload.name.endswith(".pdf"):
         reader=PdfReader(upload)
@@ -131,9 +117,9 @@ def read_file(upload):
         return text[:4000]
     else: return upload.read().decode()
 
-# ======================================
+# =========================
 # Internet Search
-# ======================================
+# =========================
 def internet_search(query):
     url=f"https://www.google.com/search?q={query}"
     headers={"User-Agent":"Mozilla/5.0"}
@@ -142,9 +128,9 @@ def internet_search(query):
     results=[g.text for g in soup.select("div.BNeawe")[:5]]
     return "\n".join(results)
 
-# ======================================
+# =========================
 # Plugin Commands
-# ======================================
+# =========================
 def system_command(cmd):
     c=cmd.lower()
     if "youtube" in c: webbrowser.open("https://youtube.com"); return "Opening YouTube"
@@ -152,9 +138,9 @@ def system_command(cmd):
     if "google" in c: webbrowser.open("https://google.com"); return "Opening Google"
     return None
 
-# ======================================
-# Groq Chat
-# ======================================
+# =========================
+# Groq AI Chat
+# =========================
 client=Groq(api_key=st.secrets["GROQ_API_KEY"])
 def ask_ai(prompt, mode):
     memory="\n".join(st.session_state.memory[-5:])
@@ -165,11 +151,12 @@ def ask_ai(prompt, mode):
     res=client.chat.completions.create(model=model, messages=messages)
     return res.choices[0].message.content
 
-# ======================================
+# =========================
 # Sidebar
-# ======================================
+# =========================
 with st.sidebar:
-    st.markdown("## HASITH HESHAN\nSystem Architect")
+    st.markdown(f"## Hi {st.session_state.user_name}")
+    st.caption("System Architect")
     st.divider()
     mode=st.radio("Intelligence Unit", ["Llama 3.3 (Normal)","GPT OSS 120B (Pro)"])
     st.divider()
@@ -187,16 +174,16 @@ with st.sidebar:
     if st.button("Clear Memory"): st.session_state.memory=[]
     if st.button("Log Out"): st.session_state.logged_in=False; st.rerun()
 
-# ======================================
+# =========================
 # Main Chat
-# ======================================
-st.markdown("<h1 class='alpha-title'>ALPHA AI</h1>", unsafe_allow_html=True)
+# =========================
+st.markdown(f"<h2 style='color:#00d4ff'>Hi {st.session_state.user_name}, How can I help today?</h2>", unsafe_allow_html=True)
 st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
-user_input=st.chat_input("Type your message, Hasith...")
+user_input=st.chat_input("Type your message...")
 if voice_mode:
     voice_text=browser_voice_input()
     if voice_text: user_input=voice_text
