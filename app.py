@@ -8,12 +8,12 @@ from streamlit_mic_recorder import mic_recorder
 from email_validator import validate_email
 
 # -----------------------
-# Page Config
+# Page config
 # -----------------------
-st.set_page_config(page_title="Alpha AI | Jarvis v3.2", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Alpha AI | Jarvis v3.3", page_icon="⚡", layout="wide")
 
 # -----------------------
-# CSS & Cyber UI
+# CSS UI
 # -----------------------
 st.markdown("""
 <style>
@@ -23,7 +23,6 @@ st.markdown("""
 .chat-box{background:rgba(0,212,255,0.05);padding:2vw;border-radius:2vw;border:1px solid rgba(0,212,255,0.2);margin:2vw 0;max-height:70vh;overflow-y:auto;}
 .stButton>button{border-radius:1vw;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);color:white;font-size:1vw;}
 .stButton>button:hover{background:#00d4ff;color:black;box-shadow:0 0 15px #00d4ff;}
-[data-testid="stSidebar"]{background:#020913;border-right:1px solid rgba(0,212,255,0.3);font-size:1vw;}
 input[type=text], input[type=password]{border-radius:1vw;padding:0.8vw;width:90%;}
 .loader-container{display:flex;flex-direction:column;align-items:center;justify-content:center;height:90vh;background:#000;}
 .loading-text{font-family:'Orbitron',sans-serif;color:#00d4ff;font-size:3vw;font-weight:900;letter-spacing:0.8vw;text-shadow:0 0 20px #00d4ff;margin-bottom:2vw;}
@@ -33,17 +32,17 @@ input[type=text], input[type=password]{border-radius:1vw;padding:0.8vw;width:90%
 """, unsafe_allow_html=True)
 
 # -----------------------
-# Session State
+# Session state
 # -----------------------
 if "messages" not in st.session_state: st.session_state.messages=[]
 if "memory" not in st.session_state: st.session_state.memory=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "loaded" not in st.session_state: st.session_state.loaded=False
-if "user_name" not in st.session_state: st.session_state.user_name="Hasith"
+if "user_name" not in st.session_state: st.session_state.user_name=None
 if "email_logged" not in st.session_state: st.session_state.email_logged=False
 
 # -----------------------
-# Loading Screen
+# Loading screen
 # -----------------------
 if not st.session_state.loaded:
     l_ph=st.empty()
@@ -62,7 +61,7 @@ if not st.session_state.loaded:
     st.rerun()
 
 # -----------------------
-# One-Time Login Screen
+# One-time login
 # -----------------------
 if not st.session_state.logged_in or not st.session_state.email_logged:
     st.markdown("<h1 class='alpha-title'>ALPHA CORE</h1>", unsafe_allow_html=True)
@@ -84,21 +83,7 @@ if not st.session_state.logged_in or not st.session_state.email_logged:
     st.stop()
 
 # -----------------------
-# Voice Input
-# -----------------------
-def browser_voice_input():
-    audio=mic_recorder(start_prompt="🎤 Start", stop_prompt="⏹ Stop", just_once=True, key="recorder")
-    if audio:
-        st.audio(audio["bytes"])
-        headers={"Authorization":f"Bearer {st.secrets['GROQ_API_KEY']}"}
-        files={"file":("audio.wav",audio["bytes"],"audio/wav")}
-        data={"model":"whisper-large-v3"}
-        resp=requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=headers, files=files, data=data)
-        return resp.json().get("text","")
-    return None
-
-# -----------------------
-# Edge TTS (safe fallback)
+# Safe TTS
 # -----------------------
 async def speak_alpha(text):
     try:
@@ -108,15 +93,15 @@ async def speak_alpha(text):
         comm = edge_tts.Communicate(safe_text, voice)
         audio = b""
         async for chunk in comm.stream():
-            if chunk["type"] == "audio": audio += chunk["data"]
+            if chunk["type"]=="audio": audio+=chunk["data"]
         if audio:
             b64 = base64.b64encode(audio).decode()
             st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
     except:
-        st.warning("⚡ TTS failed, proceeding without voice output.")
+        st.warning("⚡ TTS failed, continuing without voice.")
 
 # -----------------------
-# File Upload
+# File read
 # -----------------------
 def read_file(upload):
     if upload.name.endswith(".pdf"):
@@ -127,7 +112,7 @@ def read_file(upload):
         return upload.read().decode()
 
 # -----------------------
-# Internet Search
+# Internet search
 # -----------------------
 def internet_search(query):
     url=f"https://www.google.com/search?q={query}"
@@ -138,7 +123,7 @@ def internet_search(query):
     return "\n".join(results)
 
 # -----------------------
-# Plugin Commands
+# Plugin commands
 # -----------------------
 def system_command(cmd):
     c=cmd.lower()
@@ -148,7 +133,7 @@ def system_command(cmd):
     return None
 
 # -----------------------
-# Groq AI Chat
+# Groq AI chat
 # -----------------------
 client=Groq(api_key=st.secrets["GROQ_API_KEY"])
 def ask_ai(prompt, mode):
@@ -196,9 +181,6 @@ for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
 user_input=st.chat_input("Type your message...")
-if voice_mode:
-    voice_text=browser_voice_input()
-    if voice_text: user_input=voice_text
 
 if user_input:
     st.session_state.messages.append({"role":"user","content":user_input})
