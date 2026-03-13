@@ -8,19 +8,19 @@ from streamlit_mic_recorder import mic_recorder
 from email_validator import validate_email
 
 # -----------------------
-# Page config
+# 1. Page Configuration
 # -----------------------
 st.set_page_config(page_title="Alpha AI | Jarvis v3.3", page_icon="⚡", layout="wide")
 
 # -----------------------
-# CSS UI (Strictly Preserving Your Style)
+# 2. Advanced CSS UI
 # -----------------------
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Inter:wght@300;900&display=swap');
 .stApp{background:#02050a;color:white;font-family:'Inter',sans-serif;}
 
-/* REMOVE EXTRA OVERLAYS */
+/* REMOVE OVERLAYS */
 iframe, .stDeployButton, [data-testid="stHeader"] { display: none !important; }
 header {visibility: hidden !important;}
 
@@ -30,13 +30,12 @@ header {visibility: hidden !important;}
 .stButton>button:hover{background:#00d4ff;color:black;box-shadow:0 0 15px #00d4ff;}
 input[type=text], input[type=password]{border-radius:1vw;padding:0.8vw;width:100%; background:rgba(255,255,255,0.05); color:white; border:1px solid #00d4ff;}
 
-/* DASHBOARD WELCOME TEXT */
 .welcome-header {
     background: linear-gradient(90deg, #00d4ff, #0055ff);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-family: 'Orbitron', sans-serif;
-    font-size: 2.5rem;
+    font-size: 2.8rem;
     font-weight: 900;
     text-align: center;
     margin-top: 20px;
@@ -48,7 +47,6 @@ input[type=text], input[type=password]{border-radius:1vw;padding:0.8vw;width:100
     text-align: center;
     letter-spacing: 2px;
     margin-bottom: 30px;
-    opacity: 0.8;
 }
 
 /* CYBER LOGIN INTERFACE */
@@ -71,7 +69,7 @@ input[type=text], input[type=password]{border-radius:1vw;padding:0.8vw;width:100
 """, unsafe_allow_html=True)
 
 # -----------------------
-# Session state
+# 3. Session State Init
 # -----------------------
 if "messages" not in st.session_state: st.session_state.messages=[]
 if "memory" not in st.session_state: st.session_state.memory=[]
@@ -80,7 +78,7 @@ if "loaded" not in st.session_state: st.session_state.loaded=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 
 # -----------------------
-# Loading screen
+# 4. Loading Screen
 # -----------------------
 if not st.session_state.loaded:
     l_ph=st.empty()
@@ -99,7 +97,7 @@ if not st.session_state.loaded:
     st.rerun()
 
 # -----------------------
-# ADVANCED LOGIN SYSTEM (One-time Access)
+# 5. One-Time Login/Registration
 # -----------------------
 if not st.session_state.logged_in:
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
@@ -107,14 +105,12 @@ if not st.session_state.logged_in:
     
     with st.container():
         st.markdown('<div class="login-card">', unsafe_allow_html=True)
-        
-        u_full_name = st.text_input("Operator Name", placeholder="Enter your name...")
-        u_email = st.text_input("Operator Email", placeholder="hasith@alpha.com")
+        u_full_name = st.text_input("Operator Name", placeholder="Your Name")
+        u_email = st.text_input("Operator Email", placeholder="hasith@example.com")
         u_pass = st.text_input("Master Key", type="password", placeholder="••••••••")
         
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
+        c1, c2, c3 = st.columns(3)
+        with c1:
             if st.button("👑 REGISTER"):
                 if u_full_name and u_email and u_pass:
                     try:
@@ -123,11 +119,10 @@ if not st.session_state.logged_in:
                         st.session_state.logged_in = True
                         st.rerun()
                     except: st.error("Invalid Email")
-                else: st.warning("All fields required")
-                
-        with col2:
+                else: st.warning("Fill all fields")
+        with c2:
             if st.button("🛡️ LOGIN"):
-                if u_pass == "Hasith12378": 
+                if u_pass == "Hasith12378":
                     st.session_state.user_full_name = u_full_name if u_full_name else "Hasith"
                     st.session_state.logged_in = True
                     st.rerun()
@@ -136,22 +131,19 @@ if not st.session_state.logged_in:
                     st.session_state.logged_in = True
                     st.rerun()
                 else: st.error("Access Denied")
-                
-        with col3:
+        with c3:
             if st.button("🧪 BYPASS"):
-                if u_pass == "Hasith12378": 
+                if u_pass == "Hasith12378":
                     st.session_state.user_full_name = u_full_name if u_full_name else "Creator"
                     st.session_state.logged_in = True
                     st.rerun()
-                else: st.warning("Master Key Required")
-                
-        st.markdown('<div style="color:#00d4ff; font-family:monospace; margin-top:20px; font-size:0.7rem;">SECURE ACCESS PROTOCOL V3.3 | ENCRYPTED</div>', unsafe_allow_html=True)
+                else: st.warning("Key Required")
         st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
 # -----------------------
-# Core Functions (Unchanged)
+# 6. Core Logic Functions
 # -----------------------
 async def speak_alpha(text):
     try:
@@ -165,7 +157,7 @@ async def speak_alpha(text):
         if audio:
             b64 = base64.b64encode(audio).decode()
             st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
-    except: st.warning("⚡ TTS Error")
+    except: st.warning("TTS failed.")
 
 def read_file(upload):
     if upload.name.endswith(".pdf"):
@@ -200,39 +192,52 @@ def ask_ai(prompt, mode):
     return res.choices[0].message.content
 
 # -----------------------
-# Sidebar (Preserving All Original Options)
+# 7. Sidebar (Full Original Options)
 # -----------------------
 with st.sidebar:
-    st.markdown(f"<div style='text-align:center; border:1px solid #00d4ff; padding:15px; border-radius:15px; background:rgba(0,212,255,0.05);'><b>OPERATOR: {st.session_state.user_full_name}</b><br><small style='color:#00d4ff;'>SYSTEM ARCHITECT</small></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align:center; border:1px solid #00d4ff; padding:15px; border-radius:15px; background:rgba(0,212,255,0.05);'><b>OPERATOR: {st.session_state.user_full_name}</b></div>", unsafe_allow_html=True)
+    st.caption("System Architect")
     st.divider()
+    
+    # Intelligence Mode
     mode=st.radio("Intelligence Unit", ["Llama 3.3 (Normal)","GPT OSS 120B (Pro)"])
     st.divider()
+    
+    # AI Tools
+    st.subheader("AI Tools")
     voice_mode=st.checkbox("🎤 Voice Chat")
     internet_mode=st.checkbox("🌐 Internet Search")
     memory_mode=st.checkbox("🧠 Memory")
     st.divider()
+    
+    # File Uploader
     uploaded=st.file_uploader("📂 Upload File")
     if uploaded:
         text=read_file(uploaded)
         st.session_state.memory.append(text)
-        st.success("File synchronized with memory.")
+        st.success("File loaded into memory")
+    
     st.divider()
-    if st.button("🔌 LOG OUT"): 
+    if st.button("Clear Memory"): st.session_state.memory=[]
+    if st.button("Log Out"): 
         st.session_state.logged_in=False
         st.rerun()
 
 # -----------------------
-# Main Dashboard (Personalized Greeting)
+# 8. Main Dashboard Greeting
 # -----------------------
 st.markdown(f"<div class='welcome-header'>WELCOME, {st.session_state.user_full_name.upper()}</div>", unsafe_allow_html=True)
 st.markdown("<div class='assist-text'>HOW CAN WE ASSIST TODAY? SYSTEMS STANDING BY...</div>", unsafe_allow_html=True)
 
+# -----------------------
+# 9. Main Chat Interface
+# -----------------------
 st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 st.markdown("</div>", unsafe_allow_html=True)
 
-user_input=st.chat_input("Input command for Alpha AI...")
+user_input=st.chat_input("State your command...")
 
 if user_input:
     st.session_state.messages.append({"role":"user","content":user_input})
