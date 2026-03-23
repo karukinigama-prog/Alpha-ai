@@ -12,8 +12,8 @@ import time
 # -----------------------
 st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", page_icon="⚡")
 
-# --- GOOGLE VERIFICATION TAG ONLY ---
-st.markdown('<meta name="google-site-verification" content="google6343a1cf44bfbe26" />', unsafe_allow_html=True)
+# --- UPDATED GOOGLE VERIFICATION TAG ---
+st.markdown('<meta name="google-site-verification" content="W6jIGzCkkez2SpjygP6z0dJfinBNALmw2Hv-MkJvFB0" />', unsafe_allow_html=True)
 
 # -----------------------
 # 2. Session State Init
@@ -24,7 +24,7 @@ if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 
 # -----------------------
-# 3. Custom UI Styling (Hasith's Signature)
+# 3. Custom UI Styling
 # -----------------------
 st.markdown("""
 <style>
@@ -76,20 +76,14 @@ async def speak_alpha(text):
     except: pass
 
 def generate_video_robust(prompt):
-    models = [
-        "guoyww/AnimateDiff", 
-        "cerspense/zeroscope_v2_576w"
-    ]
+    models = ["guoyww/AnimateDiff", "cerspense/zeroscope_v2_576w"]
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    
     for model_id in models:
         try:
             API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
             response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60)
-            if response.status_code == 200:
-                return response.content
-        except:
-            continue
+            if response.status_code == 200: return response.content
+        except: continue
     return None
 
 # -----------------------
@@ -112,7 +106,7 @@ with st.sidebar:
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 8. AI Multimodal Labs (Image & Video)
+# 8. AI Multimodal Labs
 # -----------------------
 tab_img, tab_vid = st.tabs(["🖼 Image Generation Lab", "🎬 Cinema Lab (AI Video)"])
 
@@ -125,7 +119,6 @@ with tab_img:
             if img_p:
                 with st.spinner("Alpha is painting... 🖌️"):
                     try:
-                        # ඔබේ මුල් code එකේ විදිහටම තබා ඇත
                         img = hf_client.text_to_image(img_p, model="black-forest-labs/FLUX.1-schnell")
                         if img:
                             st.image(img, caption=f"Created for {st.session_state.user_full_name}")
@@ -148,7 +141,7 @@ with tab_vid:
                         st.video(vid_data)
                         st.download_button("Download Video", vid_data, "alpha_video.mp4")
                     else:
-                        st.error("Cinema Lab is currently very busy. Please try again.")
+                        st.error("Cinema Lab is currently busy.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
@@ -163,7 +156,6 @@ user_input = st.chat_input("State your command, Master...")
 if user_input:
     st.session_state.messages.append({"role":"user","content":user_input})
     with st.chat_message("user"): st.markdown(user_input)
-    
     with st.chat_message("assistant"):
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
