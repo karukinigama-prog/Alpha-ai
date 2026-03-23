@@ -56,7 +56,7 @@ GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
-hf_client = InferenceClient(token=HF_TOKEN)
+# Note: Using direct requests for more robust fail-over control in Image Lab
 
 # -----------------------
 # 6. Helper Functions
@@ -72,20 +72,55 @@ async def speak_alpha(text):
             st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
     except: pass
 
-def generate_video_robust(prompt):
-    # Lightweight Models that consume fewer credits
+def generate_image_robust(prompt):
+    # Models to try in order of preference
     models = [
-        "damo-vilab/text-to-video-ms-1.7b",
-        "cerspense/zeroscope_v2_576w"
+        "stabilityai/sdxl-turbo",       # Best, but gets limited
+        "runwayml/stable-diffusion-v1-5" # Good, very stable, less limiting
     ]
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
     
     for model_id in models:
         try:
             API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
+            # Some models require 'inputs', others require 'prompt'
             response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=120)
+            
+            if response.status_code == 200:
+                # Successfully received image
+                return response.content
+            elif response.status_code == 503:
+                # Model is loading, try next model or wait
+                continue
+            elif response.status_code == 402 or response.status_code == 429:
+                # Rate limited or payment required (free credits fully exhausted for this model)
+                continue
+            else:
+                # Other error, try next model
+                continue
+        except:
+            continue
+    # If all models failed
+    return None
+
+def generate_video_robust(prompt):
+    # Lightweight Video Models that are usually less limited
+    models = [
+        "damo-vilab/text-to-video-ms-1.7b", # Best quality lightweight video
+        "cerspense/zeroscope_v2_576w"      # Alternate lightweight video
+    ]
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    
+    for model_id in models:
+        try:
+            API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
+            # Video generation is slow, timeout is important
+            response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=180)
+            
             if response.status_code == 200:
                 return response.content
+            else:
+                continue
         except:
             continue
     return None
@@ -121,18 +156,21 @@ with tab_img:
         img_p = col1.text_input("Describe image:", key="img_prompt")
         if col2.button("Generate Photo"):
             if img_p:
-                with st.spinner("Alpha is painting... 🖌️"):
-                    try:
-                        # Using SDXL Turbo for high quality + low credit usage
-                        img = hf_client.text_to_image(img_p, model="stabilityai/sdxl-turbo")
-                        if img:
+                with st.spinner("Alpha is painting... 🖌️ (Checking multiple models)"):
+                    img_data = generate_image_robust(img_p)
+                    if img_data:
+                        try:
+                            # Parse received data to image
+                            img = Image.open(io.BytesIO(img_data))
                             st.image(img, caption=f"Created for {st.session_state.user_full_name}")
                             buf = io.BytesIO()
                             img.save(buf, format="PNG")
                             st.download_button("Download Image", buf.getvalue(), "alpha_image.png")
-                    except Exception as e: 
-                        st.error(f"Image Error: {e}")
-                        st.info("Try switching to a new Hugging Face token if credits are fully exhausted.")
+                        except Exception as e:
+                            st.error(f"Failed to display image: {e}")
+                    else:
+                        st.error("Image Lab is extremely busy or free credits are exhausted for all models. Please try again later.")
+                        st.info("Ensure you have a valid Hugging Face Write Token in your secrets.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vid:
@@ -142,13 +180,13 @@ with tab_vid:
         vid_p = col1.text_input("Describe video scene:", key="vid_prompt")
         if col2.button("Generate Video"):
             if vid_p:
-                with st.spinner("Alpha is directing... 🎬 (Using Lightweight Engine)"):
+                with st.spinner("Alpha is directing... 🎬 (Checking multiple servers)"):
                     vid_data = generate_video_robust(vid_p)
                     if vid_data:
                         st.video(vid_data)
                         st.download_button("Download Video", vid_data, "alpha_video.mp4")
                     else:
-                        st.error("Cinema Lab is currently overloaded or credits are low. Please try again later.")
+                        st.error("Cinema Lab is currently overloaded or free credits are low. Please try again later.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
