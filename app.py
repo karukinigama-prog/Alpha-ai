@@ -8,7 +8,7 @@ from PIL import Image
 import time
 
 # -----------------------
-# 1. Page Config & Identity (Created by Hasith)
+# 1. Page Config & Identity
 # -----------------------
 st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", page_icon="⚡")
 
@@ -16,12 +16,11 @@ st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", pag
 # 2. Session State Init
 # -----------------------
 if "messages" not in st.session_state: st.session_state.messages=[]
-if "memory" not in st.session_state: st.session_state.memory=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 
 # -----------------------
-# 3. Custom UI Styling (Hasith's Signature)
+# 3. Custom UI Styling
 # -----------------------
 st.markdown("""
 <style>
@@ -72,46 +71,23 @@ async def speak_alpha(text):
             st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
     except: pass
 
-def generate_video_robust(prompt):
-    # Models to try in order
-    models = [
-        "guoyww/AnimateDiff", 
-        "cerspense/zeroscope_v2_576w"
-    ]
+def generate_video_wan(prompt):
+    # Model: Wan2.1-T2V-1.3B (Text-to-Video)
+    API_URL = "https://api-inference.huggingface.co/models/Wan-AI/Wan2.1-T2V-1.3B"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    
-    for model_id in models:
-        try:
-            API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
-            response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60)
-            if response.status_code == 200:
-                return response.content
-        except:
-            continue
-    return None
+    try:
+        response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=180)
+        if response.status_code == 200:
+            return response.content
+        return None
+    except:
+        return None
 
 # -----------------------
-# 7. Sidebar Control
+# 7. Main Interface
 # -----------------------
-with st.sidebar:
-    st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=70)
-    st.title("Alpha Control")
-    st.markdown(f"**Operator:** {st.session_state.user_full_name}")
-    st.divider()
-    mode = st.radio("Intelligence Level", ["Normal (Llama 3.3 Fast)", "Pro (GPT OSS 120B)"])
-    voice_on = st.checkbox("Voice Output", value=True)
-    st.divider()
-    if st.button("Log Out"):
-        st.session_state.logged_in = False
-        st.rerun()
-    st.write("---")
-    st.caption("Created by Hasith")
-
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
-# -----------------------
-# 8. AI Multimodal Labs (Image & Video)
-# -----------------------
 tab_img, tab_vid = st.tabs(["🖼 Image Generation Lab", "🎬 Cinema Lab (AI Video)"])
 
 with tab_img:
@@ -121,15 +97,17 @@ with tab_img:
         img_p = col1.text_input("Describe image:", key="img_prompt")
         if col2.button("Generate Photo"):
             if img_p:
-                with st.spinner("Alpha is painting... 🖌️"):
+                with st.spinner("Alpha is using Zeta-Chroma... 🖌️"):
                     try:
-                        img = hf_client.text_to_image(img_p, model="black-forest-labs/FLUX.1-schnell")
+                        # Model: Zeta-Chroma (Text-to-Image)
+                        img = hf_client.text_to_image(img_p, model="lodestones/Zeta-Chroma")
                         if img:
                             st.image(img, caption=f"Created for {st.session_state.user_full_name}")
                             buf = io.BytesIO()
                             img.save(buf, format="PNG")
                             st.download_button("Download Image", buf.getvalue(), "alpha_image.png")
-                    except Exception as e: st.error(f"Image Error: {e}")
+                    except Exception as e: 
+                        st.error(f"Image Error: {e}")
         st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vid:
@@ -139,17 +117,17 @@ with tab_vid:
         vid_p = col1.text_input("Describe video scene:", key="vid_prompt")
         if col2.button("Generate Video"):
             if vid_p:
-                with st.spinner("Alpha is directing... 🎬 (Checking multiple servers)"):
-                    vid_data = generate_video_robust(vid_p)
+                with st.spinner("Alpha is using Wan2.1... 🎬"):
+                    vid_data = generate_video_wan(vid_p)
                     if vid_data:
                         st.video(vid_data)
                         st.download_button("Download Video", vid_data, "alpha_video.mp4")
                     else:
-                        st.error("Cinema Lab is currently very busy. Please try again in 1-2 minutes.")
+                        st.error("Cinema Lab is busy or model is loading. Please try again.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 9. Hybrid Intelligence Chat
+# 8. Chat System
 # -----------------------
 st.write("### 💬 Heartfelt Conversation")
 for msg in st.session_state.messages:
@@ -164,11 +142,10 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
-            selected_model = "llama-3.3-70b-versatile" if "Normal" in mode else "openai/gpt-oss-120b"
-            sys_msg = f"You are Alpha AI, a heartfelt assistant created by Hasith. Respond warmly in the user's language. Creator: Hasith."
+            sys_msg = "You are Alpha AI, a heartfelt assistant created by Hasith. Respond warmly."
             try:
                 stream = groq_client.chat.completions.create(
-                    model=selected_model,
+                    model="llama-3.3-70b-versatile",
                     messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
                     temperature=0.7,
                     stream=True
@@ -179,6 +156,7 @@ if user_input:
                         full_res += chunk.choices[0].delta.content
                         res_placeholder.markdown(full_res + "▌")
                 res_placeholder.markdown(full_res)
-                if voice_on: asyncio.run(speak_alpha(full_res))
+                # Voice output logic
+                asyncio.run(speak_alpha(full_res))
                 st.session_state.messages.append({"role":"assistant","content":full_res})
             except Exception as e: st.error(f"Brain Error: {e}")
