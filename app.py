@@ -12,6 +12,9 @@ import time
 # -----------------------
 st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", page_icon="⚡")
 
+# --- GOOGLE VERIFICATION TAG ONLY ---
+st.markdown('<meta name="google-site-verification" content="google6343a1cf44bfbe26" />', unsafe_allow_html=True)
+
 # -----------------------
 # 2. Session State Init
 # -----------------------
@@ -73,7 +76,6 @@ async def speak_alpha(text):
     except: pass
 
 def generate_video_robust(prompt):
-    # Models to try in order
     models = [
         "guoyww/AnimateDiff", 
         "cerspense/zeroscope_v2_576w"
@@ -123,6 +125,7 @@ with tab_img:
             if img_p:
                 with st.spinner("Alpha is painting... 🖌️"):
                     try:
+                        # ඔබේ මුල් code එකේ විදිහටම තබා ඇත
                         img = hf_client.text_to_image(img_p, model="black-forest-labs/FLUX.1-schnell")
                         if img:
                             st.image(img, caption=f"Created for {st.session_state.user_full_name}")
@@ -139,13 +142,13 @@ with tab_vid:
         vid_p = col1.text_input("Describe video scene:", key="vid_prompt")
         if col2.button("Generate Video"):
             if vid_p:
-                with st.spinner("Alpha is directing... 🎬 (Checking multiple servers)"):
+                with st.spinner("Alpha is directing... 🎬"):
                     vid_data = generate_video_robust(vid_p)
                     if vid_data:
                         st.video(vid_data)
                         st.download_button("Download Video", vid_data, "alpha_video.mp4")
                     else:
-                        st.error("Cinema Lab is currently very busy. Please try again in 1-2 minutes.")
+                        st.error("Cinema Lab is currently very busy. Please try again.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
@@ -165,7 +168,7 @@ if user_input:
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
             selected_model = "llama-3.3-70b-versatile" if "Normal" in mode else "openai/gpt-oss-120b"
-            sys_msg = f"You are Alpha AI, a heartfelt assistant created by Hasith. Respond warmly in the user's language. Creator: Hasith."
+            sys_msg = f"You are Alpha AI, a heartfelt assistant created by Hasith. Respond warmly."
             try:
                 stream = groq_client.chat.completions.create(
                     model=selected_model,
