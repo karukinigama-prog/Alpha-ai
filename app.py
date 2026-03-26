@@ -1,25 +1,24 @@
 import streamlit as st
 from huggingface_hub import InferenceClient
 from groq import Groq
-from PyPDF2 import PdfReader
 import requests, base64, asyncio, io
 import edge_tts
 from PIL import Image
 import time
+import urllib.parse
 
 # -----------------------
 # 1. Page Config & Identity (Created by Hasith)
 # -----------------------
 st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", page_icon="⚡")
 
-# --- UPDATED GOOGLE VERIFICATION TAG ---
+# --- GOOGLE VERIFICATION TAG ---
 st.markdown('<meta name="google-site-verification" content="W6jIGzCkkez2SpjygP6z0dJfinBNALmw2Hv-MkJvFB0" />', unsafe_allow_html=True)
 
 # -----------------------
 # 2. Session State Init
 # -----------------------
 if "messages" not in st.session_state: st.session_state.messages=[]
-if "memory" not in st.session_state: st.session_state.memory=[]
 if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 
@@ -57,6 +56,8 @@ if not st.session_state.logged_in:
 # -----------------------
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
+# Using the secret key you just generated
+POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY", "sk_Z0oEnm05szbphnbZ9ClRCukKV2HyDMH5")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 hf_client = InferenceClient(token=HF_TOKEN)
@@ -101,7 +102,7 @@ with st.sidebar:
         st.session_state.logged_in = False
         st.rerun()
     st.write("---")
-    st.caption("Created by Hasith")
+    st.caption("Created by Hasith | Bandarawela Central College")
 
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
@@ -115,17 +116,30 @@ with tab_img:
         st.markdown('<div class="lab-box">', unsafe_allow_html=True)
         col1, col2 = st.columns([3, 1])
         img_p = col1.text_input("Describe image:", key="img_prompt")
+        
+        # Selection for Pollinations Models
+        img_model = st.selectbox("Intelligence Mode:", ["flux", "turbo", "zimage", "p-image"], key="img_model_select")
+        
         if col2.button("Generate Photo"):
             if img_p:
-                with st.spinner("Alpha is painting... 🖌️"):
+                with st.spinner("Alpha is painting via Pollinations Engine... 🖌️"):
                     try:
-                        img = hf_client.text_to_image(img_p, model="black-forest-labs/FLUX.1-schnell")
-                        if img:
-                            st.image(img, caption=f"Created for {st.session_state.user_full_name}")
-                            buf = io.BytesIO()
-                            img.save(buf, format="PNG")
-                            st.download_button("Download Image", buf.getvalue(), "alpha_image.png")
-                    except Exception as e: st.error(f"Image Error: {e}")
+                        encoded_p = urllib.parse.quote(img_p)
+                        seed = random.randint(1, 1000000)
+                        
+                        # UPDATED URL to gen.pollinations.ai
+                        url = f"https://gen.pollinations.ai/image/{encoded_p}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"
+                        headers = {"Authorization": f"Bearer {POLLINATIONS_KEY}"}
+                        
+                        response = requests.get(url, headers=headers, timeout=60)
+                        
+                        if response.status_code == 200:
+                            st.image(response.content, caption=f"Created for {st.session_state.user_full_name}", use_container_width=True)
+                            st.download_button("Download Image 📥", response.content, f"alpha_{seed}.png", "image/png")
+                        else:
+                            st.error(f"Generation Failed: {response.status_code}")
+                            
+                    except Exception as e: st.error(f"Error: {e}")
         st.markdown('</div>', unsafe_allow_html=True)
 
 with tab_vid:
@@ -139,7 +153,7 @@ with tab_vid:
                     vid_data = generate_video_robust(vid_p)
                     if vid_data:
                         st.video(vid_data)
-                        st.download_button("Download Video", vid_data, "alpha_video.mp4")
+                        st.download_button("Download Video 📥", vid_data, "alpha_video.mp4")
                     else:
                         st.error("Cinema Lab is currently busy.")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -159,7 +173,7 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
-            selected_model = "llama-3.3-70b-versatile" if "Normal" in mode else "openai/gpt-oss-120b"
+            selected_model = "llama-3.3-70b-versatile" if "Normal" in mode else "llama3-70b-8192" 
             sys_msg = f"You are Alpha AI, a heartfelt assistant created by Hasith. Respond warmly."
             try:
                 stream = groq_client.chat.completions.create(
@@ -177,3 +191,6 @@ if user_input:
                 if voice_on: asyncio.run(speak_alpha(full_res))
                 st.session_state.messages.append({"role":"assistant","content":full_res})
             except Exception as e: st.error(f"Brain Error: {e}")
+
+st.markdown("---")
+st.caption("Alpha AI Project | Bandarawela Central College | Created by Hasith")
