@@ -6,6 +6,7 @@ import edge_tts
 from PIL import Image
 import time
 import urllib.parse
+import random  
 
 # -----------------------
 # 1. Page Config & Identity (Created by Hasith)
