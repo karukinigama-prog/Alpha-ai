@@ -24,24 +24,25 @@ if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 
 # -----------------------
-# 3. Custom UI Styling (FIX: REMOVE HOSTING ICONS)
+# 3. Custom UI Styling (FIX: REMOVE ALL STREAMLIT BRANDING)
 # -----------------------
 st.markdown("""
 <style>
-    /* මුළු Page එකේම අනවශ්‍ය Streamlit elements සැඟවීම */
+    /* Streamlit එකේ standard elements හැංගීම */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* දකුණු පස පහළ තියෙන Hosting සහ Branding icons අයින් කිරීම (Red circles in your image) */
+    /* දකුණු පස පහළ තියෙන Hosting/Deploy icons සම්පූර්ණයෙන්ම අයින් කිරීම */
     .viewerBadge_container__1QS1n, 
     .styles_viewerBadge__1yB5_, 
     [data-testid="stStatusWidget"],
-    .stAppDeployButton {
+    .stAppDeployButton,
+    footer {
         display: none !important;
     }
 
-    /* ඔයාගේ පරණ UI styling ටික */
+    /* Premium UI Styles */
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px; font-size: 22px; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); }
     .stChatMessage { border-radius: 15px; }
     div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 45px; font-weight: bold; border: 1px solid #FFD700; transition: 0.3s; }
@@ -71,7 +72,8 @@ if not st.session_state.logged_in:
 # -----------------------
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
-POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY", "sk_Z0oEnm05szbphnbZ9ClRCukKV2HyDMH5")
+# Pollinations සඳහා API Key එකක් නැතිව වුණත් වැඩ කරයි
+POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY", "")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 hf_client = InferenceClient(token=HF_TOKEN)
@@ -93,9 +95,8 @@ async def speak_alpha(text):
 def generate_video_pollinations(prompt, duration=4, aspect_ratio="16:9", audio=True):
     encoded_prompt = urllib.parse.quote(prompt)
     url = f"https://gen.pollinations.ai/video/{encoded_prompt}?model=wan&duration={duration}&aspectRatio={aspect_ratio}&audio={str(audio).lower()}"
-    headers = {"Authorization": f"Bearer {POLLINATIONS_KEY}"}
     try:
-        response = requests.get(url, headers=headers, timeout=150)
+        response = requests.get(url, timeout=180) # වීඩියෝ එකක් හැදෙන්න සෑහෙන වෙලාවක් යන නිසා timeout එක වැඩි කළා
         if response.status_code == 200: return response.content
     except: return None
 
@@ -107,7 +108,7 @@ with st.sidebar:
     st.title("Alpha Control")
     st.markdown(f"**Operator:** {st.session_state.user_full_name}")
     st.divider()
-    mode = st.radio("Intelligence Level", ["Normal (Llama 3.3 Fast)", "Pro (DeepSeek R1 70B)"])
+    mode = st.radio("Intelligence Level", ["Normal (Llama 3.3 Fast)", "Pro (DeepSeek-R1-Zero 671B)"])
     voice_on = st.checkbox("Voice Output", value=True)
     st.divider()
     if st.button("Log Out"):
@@ -136,8 +137,7 @@ with tab_img:
                         encoded_p = urllib.parse.quote(img_p)
                         seed = random.randint(1, 1000000)
                         url = f"https://gen.pollinations.ai/image/{encoded_p}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"
-                        headers = {"Authorization": f"Bearer {POLLINATIONS_KEY}"}
-                        response = requests.get(url, headers=headers, timeout=60)
+                        response = requests.get(url, timeout=60)
                         if response.status_code == 200:
                             st.image(response.content, caption=f"Created for {st.session_state.user_full_name}", use_container_width=True)
                             st.download_button("Download Image 📥", response.content, f"alpha_{seed}.png", "image/png")
@@ -151,16 +151,16 @@ with tab_vid:
         vid_p = col1.text_input("Describe video scene:", key="vid_prompt")
         if col2.button("Generate Video"):
             if vid_p:
-                with st.spinner("Alpha is directing via Wan Model... 🎬"):
+                with st.spinner("Alpha is directing via Wan Model... 🎬 (Please wait a moment)"):
                     vid_data = generate_video_pollinations(vid_p)
                     if vid_data:
                         st.video(vid_data)
                         st.download_button("Download Video 📥", vid_data, "alpha_video.mp4")
-                    else: st.error("Video Lab is currently busy.")
+                    else: st.error("Video Lab is currently busy. Try again soon.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 9. Hybrid Intelligence Chat (FIX: DEEPSEEK R1 FOR PRO)
+# 9. Hybrid Intelligence Chat (PRO: DEEPSEEK-R1-ZERO 671B)
 # -----------------------
 st.write("### 💬 Heartfelt Conversation")
 for msg in st.session_state.messages:
@@ -175,27 +175,49 @@ if user_input:
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
             
-            # --- MODEL SELECTION ---
+            # --- MODEL SELECTION LOGIC ---
             if "Normal" in mode:
-                selected_model = "llama-3.3-70b-versatile"
-            else:
-                # Pro mode එකට DeepSeek R1 Distill model එක පාවිච්චි කරයි
-                selected_model = "deepseek-r1-distill-llama-70b" 
+                # Normal Mode: Llama 3.3 70B via Groq (Fast)
+                try:
+                    stream = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "system", "content": "You are Alpha AI created by Hasith Karunarathna."}] + st.session_state.messages[-10:],
+                        stream=True
+                    )
+                    full_res = ""
+                    for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            full_res += chunk.choices[0].delta.content
+                            res_placeholder.markdown(full_res + "▌")
+                    res_placeholder.markdown(full_res)
+                except Exception as e: st.error(f"Groq Error: {e}")
             
-            sys_msg = f"You are Alpha AI, a heartfelt assistant created by Hasith Karunarathna. Respond warmly."
-            try:
-                stream = groq_client.chat.completions.create(
-                    model=selected_model,
-                    messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
-                    temperature=0.6,
-                    stream=True
-                )
-                full_res = ""
-                for chunk in stream:
-                    if chunk.choices[0].delta.content:
-                        full_res += chunk.choices[0].delta.content
-                        res_placeholder.markdown(full_res + "▌")
-                res_placeholder.markdown(full_res)
-                if voice_on: asyncio.run(speak_alpha(full_res))
-                st.session_state.messages.append({"role":"assistant","content":full_res})
-            except Exception as e: st.error(f"Brain Error: {e}")
+            else:
+                # Pro Mode: DeepSeek-R1-Zero 671B (Full Model) via HF Inference
+                try:
+                    full_res = ""
+                    # Hugging Face Inference API හරහා direct query එකක් යවනවා
+                    for message in hf_client.chat_completion(
+                        model="deepseek-ai/DeepSeek-R1-Zero",
+                        messages=[{"role": "system", "content": "You are Alpha AI, a deep reasoning expert created by Hasith Karunarathna."}] + st.session_state.messages[-10:],
+                        max_tokens=2048,
+                        stream=True,
+                    ):
+                        content = message.choices[0].delta.content
+                        if content:
+                            full_res += content
+                            res_placeholder.markdown(full_res + "▌")
+                    res_placeholder.markdown(full_res)
+                
+                except Exception as e:
+                    # HF Server එක කාර්යබහුල නම් Fallback එක විදියට Groq Distill එක පාවිච්චි කරයි
+                    st.warning("R1-Zero 671B is busy. Switching to Distill mode for speed.")
+                    response = groq_client.chat.completions.create(
+                        model="deepseek-r1-distill-llama-70b",
+                        messages=[{"role": "system", "content": "You are Alpha AI created by Hasith Karunarathna."}] + st.session_state.messages[-10:],
+                    )
+                    full_res = response.choices[0].message.content
+                    res_placeholder.markdown(full_res)
+
+            if voice_on: asyncio.run(speak_alpha(full_res))
+            st.session_state.messages.append({"role":"assistant","content":full_res})
