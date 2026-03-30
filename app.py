@@ -1,214 +1,192 @@
 import streamlit as st
 from huggingface_hub import InferenceClient
 from groq import Groq
+from supabase import create_client, Client
 import requests, base64, asyncio, io
 import edge_tts
-from PIL import Image
-import time
 import urllib.parse
-import random  
+import random
 
 # -----------------------
-# 1. Page Config & Identity (Created by Hasith)
+# 1. Page Config & Identity
 # -----------------------
 st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", page_icon="⚡")
 
-# --- GOOGLE VERIFICATION TAG ---
-st.markdown('<meta name="google-site-verification" content="W6jIGzCkkez2SpjygP6z0dJfinBNALmw2Hv-MkJvFB0" />', unsafe_allow_html=True)
-
 # -----------------------
-# 2. Session State Init
-# -----------------------
-if "messages" not in st.session_state: st.session_state.messages=[]
-if "logged_in" not in st.session_state: st.session_state.logged_in=False
-if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
-
-# -----------------------
-# 3. Custom UI Styling (FIXED: SIDEBAR NOW VISIBLE)
+# 2. Custom UI Styling (No Branding, Sidebar Visible)
 # -----------------------
 st.markdown("""
 <style>
-    /* අනවශ්‍ය Branding elements පමණක් සැඟවීම */
     footer {visibility: hidden;}
-    
-    /* දකුණු පස පහළ තියෙන Hosting/Deploy icons අයින් කිරීම */
-    .viewerBadge_container__1QS1n, 
-    .styles_viewerBadge__1yB5_, 
-    [data-testid="stStatusWidget"],
-    .stAppDeployButton {
-        display: none !important;
-    }
-
-    /* Premium UI Styles */
+    .stAppDeployButton, [data-testid="stStatusWidget"] { display: none !important; }
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px; font-size: 22px; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); }
     .stChatMessage { border-radius: 15px; }
     div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 45px; font-weight: bold; border: 1px solid #FFD700; transition: 0.3s; }
     div.stButton > button:hover { background-color: #FFD700; color: #000; }
-    .lab-box { border: 1px solid #333; padding: 20px; border-radius: 15px; background: #0e1117; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
 # -----------------------
-# 4. Login System
+# 3. Session State Init
 # -----------------------
-if not st.session_state.logged_in:
-    st.markdown('<div class="premium-banner">ALPHA CORE SYSTEM ACCESS</div>', unsafe_allow_html=True)
-    st.markdown('<p style="text-align:center; color:#FFD700; font-weight:bold;">Developed by Hasith</p>', unsafe_allow_html=True)
-    name = st.text_input("Operator Name")
-    password = st.text_input("Master Key", type="password")
-    if st.button("Initialize Alpha"):
-        if password == "Hasith12378":
-            st.session_state.user_full_name = name or "Hasith"
-            st.session_state.logged_in = True
-            st.rerun()
-        else: st.error("Access Denied: Invalid Master Key")
-    st.stop()
+if "messages" not in st.session_state: st.session_state.messages = []
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "user" not in st.session_state: st.session_state.user = None
 
 # -----------------------
-# 5. API Setup
+# 4. API & Database Setup (Supabase Integration)
 # -----------------------
+# ඔයා එවපු Keys ටික මෙතනින් Secrets හරහා ලබාගන්නවා
+SUPABASE_URL = st.secrets.get("SUPABASE_URL")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY")
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
-POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY", "")
+
+# Supabase Client එක Initialize කිරීම
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+else:
+    st.error("Database connection failed. Please check Streamlit Secrets.")
+    st.stop()
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 hf_client = InferenceClient(token=HF_TOKEN)
 
 # -----------------------
-# 6. Helper Functions
+# 5. Auth Logic (Permanent Login)
+# -----------------------
+def login_alpha(email, password):
+    try:
+        # Supabase හරහා login වීම
+        response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        st.session_state.user = response.user
+        st.session_state.logged_in = True
+        st.success("Access Granted, Master!")
+        st.rerun()
+    except Exception as e:
+        st.error("Authentication Error: Invalid Master Credentials.")
+
+def signup_alpha(email, password, name):
+    try:
+        # අලුත් User කෙනෙක් register කිරීම
+        response = supabase.auth.sign_up({"email": email, "password": password, "options": {"data": {"full_name": name}}})
+        st.info("Registration successful! Please check your email to verify.")
+    except Exception as e:
+        st.error(f"Error during registration: {e}")
+
+# -----------------------
+# 6. Login Screen UI
+# -----------------------
+if not st.session_state.logged_in:
+    st.markdown('<div class="premium-banner">ALPHA CORE SYSTEM ACCESS</div>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center; color:#FFD700; font-weight:bold;">Created by Hasith Karunarathna</p>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        tab_login, tab_signup = st.tabs(["🔐 Login", "📝 New Operator"])
+        
+        with tab_login:
+            login_email = st.text_input("Email")
+            login_pass = st.text_input("Password", type="password")
+            if st.button("Initialize Alpha"):
+                login_alpha(login_email, login_pass)
+            st.divider()
+            st.caption("Forgot your Master Key? Contact Admin Hasith.")
+
+        with tab_signup:
+            new_name = st.text_input("Full Name")
+            new_email = st.text_input("Official Email")
+            new_pass = st.text_input("Create Password", type="password")
+            if st.button("Register Identity"):
+                signup_alpha(new_email, new_pass, new_name)
+
+    st.stop()
+
+# -----------------------
+# 7. Helper Functions (Voice & AI)
 # -----------------------
 async def speak_alpha(text):
     try:
         comm = edge_tts.Communicate(text, "en-US-SteffanNeural")
         audio = b""
         async for chunk in comm.stream():
-            if chunk["type"]=="audio": audio+=chunk["data"]
+            if chunk["type"] == "audio": audio += chunk["data"]
         if audio:
             b64 = base64.b64encode(audio).decode()
             st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
     except: pass
 
-def generate_video_pollinations(prompt, duration=4, aspect_ratio="16:9", audio=True):
-    encoded_prompt = urllib.parse.quote(prompt)
-    url = f"https://gen.pollinations.ai/video/{encoded_prompt}?model=wan&duration={duration}&aspectRatio={aspect_ratio}&audio={str(audio).lower()}"
-    try:
-        response = requests.get(url, timeout=180)
-        if response.status_code == 200: return response.content
-    except: return None
-
 # -----------------------
-# 7. Sidebar Control (FIXED: WILL BE VISIBLE NOW)
+# 8. Main Application UI (Sidebar & Tabs)
 # -----------------------
 with st.sidebar:
-    st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=70)
     st.title("Alpha Control")
-    st.markdown(f"**Operator:** {st.session_state.user_full_name}")
+    st.write(f"Operator: **{st.session_state.user.email}**")
     st.divider()
-    mode = st.radio("Intelligence Level", ["Normal (Llama 3.3 Fast)", "Pro (DeepSeek-R1-Zero 671B)"])
+    mode = st.radio("Intelligence Level", ["Normal (Llama 3.3)", "Pro (DeepSeek-R1-Zero 671B)"])
     voice_on = st.checkbox("Voice Output", value=True)
-    st.divider()
     if st.button("Log Out"):
+        supabase.auth.sign_out()
         st.session_state.logged_in = False
+        st.session_state.user = None
         st.rerun()
     st.write("---")
     st.caption("Created by Hasith | Bandarawela Central College")
 
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
-# -----------------------
-# 8. AI Multimodal Labs
-# -----------------------
-tab_img, tab_vid = st.tabs(["🖼 Image Generation Lab", "🎬 Cinema Lab (AI Video)"])
+# Multimodal Tabs
+tab_chat, tab_lab = st.tabs(["💬 Hybrid Conversation", "🖼 AI Creation Lab"])
 
-with tab_img:
-    with st.container():
-        st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-        col1, col2 = st.columns([3, 1])
-        img_p = col1.text_input("Describe image:", key="img_prompt")
-        img_model = st.selectbox("Intelligence Mode:", ["flux", "turbo", "zimage", "p-image"], key="img_model_select")
-        if col2.button("Generate Photo"):
-            if img_p:
-                with st.spinner("Alpha is painting... 🖌️"):
-                    try:
-                        encoded_p = urllib.parse.quote(img_p)
-                        seed = random.randint(1, 1000000)
-                        url = f"https://gen.pollinations.ai/image/{encoded_p}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"
-                        response = requests.get(url, timeout=60)
-                        if response.status_code == 200:
-                            st.image(response.content, caption=f"Created for {st.session_state.user_full_name}", use_container_width=True)
-                            st.download_button("Download Image 📥", response.content, f"alpha_{seed}.png", "image/png")
-                    except Exception as e: st.error(f"Error: {e}")
-        st.markdown('</div>', unsafe_allow_html=True)
+with tab_chat:
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-with tab_vid:
-    with st.container():
-        st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-        col1, col2 = st.columns([3, 1])
-        vid_p = col1.text_input("Describe video scene:", key="vid_prompt")
-        if col2.button("Generate Video"):
-            if vid_p:
-                with st.spinner("Alpha is directing via Wan Model... 🎬"):
-                    vid_data = generate_video_pollinations(vid_p)
-                    if vid_data:
-                        st.video(vid_data)
-                        st.download_button("Download Video 📥", vid_data, "alpha_video.mp4")
-                    else: st.error("Video Lab is currently busy.")
-        st.markdown('</div>', unsafe_allow_html=True)
+    user_input = st.chat_input("State your command, Master...")
 
-# -----------------------
-# 9. Hybrid Intelligence Chat (FIXED: PRO MODE & VOICE ERROR)
-# -----------------------
-st.write("### 💬 Heartfelt Conversation")
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]): st.markdown(msg["content"])
-
-user_input = st.chat_input("State your command, Master...")
-
-if user_input:
-    st.session_state.messages.append({"role":"user","content":user_input})
-    with st.chat_message("user"): st.markdown(user_input)
-    with st.chat_message("assistant"):
-        with st.spinner("Alpha is thinking..."):
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user"): st.markdown(user_input)
+        
+        with st.chat_message("assistant"):
             res_placeholder = st.empty()
             full_res = ""
             
             if "Normal" in mode:
                 try:
-                    # Normal Mode: Llama 3.3 via Groq
                     stream = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role": "system", "content": "You are Alpha AI created by Hasith."}] + st.session_state.messages[-10:],
+                        messages=[{"role": "system", "content": f"You are Alpha AI created by Hasith. Warmly greet user {st.session_state.user.email}."}] + st.session_state.messages[-10:],
                         stream=True
                     )
                     for chunk in stream:
                         if chunk.choices[0].delta.content:
                             full_res += chunk.choices[0].delta.content
                             res_placeholder.markdown(full_res + "▌")
-                except Exception as e:
-                    st.error(f"Groq API Error: {e}. Please check your Key.")
+                except: st.error("Groq Restriction Error. Please update Secrets.")
             
             else:
-                # Pro Mode: DeepSeek-R1-Zero 671B via HF
+                # Pro Mode: DeepSeek-R1-Zero 671B (Full Model)
                 try:
                     for message in hf_client.chat_completion(
                         model="deepseek-ai/DeepSeek-R1-Zero",
-                        messages=[{"role": "system", "content": "You are Alpha AI created by Hasith Karunarathna."}] + st.session_state.messages[-10:],
-                        max_tokens=2048,
-                        stream=True,
+                        messages=[{"role": "system", "content": "You are Alpha AI, a deep reasoning engine created by Hasith Karunarathna."}] + st.session_state.messages[-10:],
+                        max_tokens=2048, stream=True
                     ):
                         content = message.choices[0].delta.content
                         if content:
                             full_res += content
                             res_placeholder.markdown(full_res + "▌")
-                except Exception as e:
-                    st.error("DeepSeek (HF) is currently overloaded. Try again soon.")
+                except: st.error("DeepSeek (HF) is busy or overloaded. Try again.")
 
             res_placeholder.markdown(full_res)
-            
-            # --- FIXED VOICE OUTPUT ERROR ---
-            if voice_on and full_res:
-                try:
-                    asyncio.run(speak_alpha(full_res))
-                except: pass
-                
-            st.session_state.messages.append({"role":"assistant","content":full_res})
+            if voice_on: asyncio.run(speak_alpha(full_res))
+            st.session_state.messages.append({"role": "assistant", "content": full_res})
+
+with tab_lab:
+    st.subheader("Image Generation Lab")
+    img_p = st.text_input("Describe your vision:")
+    if st.button("Generate Visualization"):
+        with st.spinner("Alpha is thinking..."):
+            url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_p)}?nologo=true&seed={random.randint(1,9999)}"
+            st.image(url, caption="Generated by Alpha AI")
