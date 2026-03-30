@@ -24,10 +24,18 @@ if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 
 # -----------------------
-# 3. Custom UI Styling
+# 3. Custom UI Styling (MODIFIED TO HIDE STREAMLIT ICONS)
 # -----------------------
 st.markdown("""
 <style>
+    /* Streamlit එකේ Branding සහ Icons අයින් කිරීම */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .viewerBadge_container__1QS1n {display: none !important;}
+    .styles_viewerBadge__1yB5_ {display: none !important;}
+    [data-testid="stStatusWidget"] {visibility: hidden;}
+    
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px; font-size: 22px; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); }
     .stChatMessage { border-radius: 15px; }
     div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 45px; font-weight: bold; border: 1px solid #FFD700; transition: 0.3s; }
@@ -57,7 +65,7 @@ if not st.session_state.logged_in:
 # -----------------------
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
-# Using the secret key you just generated
+# Using the secret key provided in chat context
 POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY", "sk_Z0oEnm05szbphnbZ9ClRCukKV2HyDMH5")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
@@ -174,6 +182,7 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
+            # Selected based on mode
             selected_model = "llama-3.3-70b-versatile" if "Normal" in mode else "llama3-70b-8192" 
             sys_msg = f"You are Alpha AI, a heartfelt assistant created by Hasith. Respond warmly."
             try:
@@ -192,6 +201,3 @@ if user_input:
                 if voice_on: asyncio.run(speak_alpha(full_res))
                 st.session_state.messages.append({"role":"assistant","content":full_res})
             except Exception as e: st.error(f"Brain Error: {e}")
-
-st.markdown("---")
-st.caption("Alpha AI Project | Bandarawela Central College | Created by Hasith")
