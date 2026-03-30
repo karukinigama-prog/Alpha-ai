@@ -3,18 +3,13 @@ from huggingface_hub import InferenceClient
 from groq import Groq
 import requests, base64, asyncio, io
 import edge_tts
-from PIL import Image
-import time
 import urllib.parse
 import random  
 
 # -----------------------
-# 1. Page Config & Identity (Created by Hasith)
+# 1. Page Config & Identity
 # -----------------------
 st.set_page_config(page_title="Alpha AI | Created by Hasith", layout="wide", page_icon="⚡")
-
-# --- GOOGLE VERIFICATION TAG ---
-st.markdown('<meta name="google-site-verification" content="W6jIGzCkkez2SpjygP6z0dJfinBNALmw2Hv-MkJvFB0" />', unsafe_allow_html=True)
 
 # -----------------------
 # 2. Session State Init
@@ -41,7 +36,6 @@ st.markdown("""
 # -----------------------
 if not st.session_state.logged_in:
     st.markdown('<div class="premium-banner">ALPHA CORE SYSTEM ACCESS</div>', unsafe_allow_html=True)
-    st.markdown('<p style="text-align:center; color:#FFD700; font-weight:bold;">Developed by Hasith</p>', unsafe_allow_html=True)
     name = st.text_input("Operator Name")
     password = st.text_input("Master Key", type="password")
     if st.button("Initialize Alpha"):
@@ -57,7 +51,6 @@ if not st.session_state.logged_in:
 # -----------------------
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
-POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY", "sk_Z0oEnm05szbphnbZ9ClRCukKV2HyDMH5")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 hf_client = InferenceClient(token=HF_TOKEN)
@@ -76,39 +69,35 @@ async def speak_alpha(text):
             st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
     except: pass
 
-# --- UPDATE: POLLINATIONS VIDEO GENERATION ---
+# --- FIXED: Pollinations Video Generation ---
 def generate_video_pollinations(prompt, duration=4, aspect_ratio="16:9", audio=True):
     encoded_prompt = urllib.parse.quote(prompt)
     url = (
         f"https://gen.pollinations.ai/video/{encoded_prompt}"
         f"?model=wan&duration={duration}&aspectRatio={aspect_ratio}&audio={str(audio).lower()}"
     )
-    headers = {"Authorization": f"Bearer {POLLINATIONS_KEY}"}
     try:
-        response = requests.get(url, headers=headers, timeout=120) # Video වලට වැඩි වෙලාවක් Spinner එක තියන්න 120s දුන්නා
+        response = requests.get(url, timeout=120)
         if response.status_code == 200:
-            return response.content
+            return io.BytesIO(response.content)  # wrap in BytesIO for Streamlit
         else:
+            st.error(f"Video generation failed: {response.status_code}")
             return None
     except Exception as e:
+        st.error(f"Error: {e}")
         return None
 
 # -----------------------
 # 7. Sidebar Control
 # -----------------------
 with st.sidebar:
-    st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=70)
     st.title("Alpha Control")
     st.markdown(f"**Operator:** {st.session_state.user_full_name}")
-    st.divider()
     mode = st.radio("Intelligence Level", ["Normal (Llama 3.3 Fast)", "Pro (GPT OSS 120B)"])
     voice_on = st.checkbox("Voice Output", value=True)
-    st.divider()
     if st.button("Log Out"):
         st.session_state.logged_in = False
         st.rerun()
-    st.write("---")
-    st.caption("Created by Hasith | Bandarawela Central College")
 
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
@@ -131,8 +120,7 @@ with tab_img:
                         encoded_p = urllib.parse.quote(img_p)
                         seed = random.randint(1, 1000000)
                         url = f"https://gen.pollinations.ai/image/{encoded_p}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"
-                        headers = {"Authorization": f"Bearer {POLLINATIONS_KEY}"}
-                        response = requests.get(url, headers=headers, timeout=60)
+                        response = requests.get(url, timeout=60)
                         
                         if response.status_code == 200:
                             st.image(response.content, caption=f"Created for {st.session_state.user_full_name}", use_container_width=True)
@@ -148,7 +136,6 @@ with tab_vid:
         col1, col2 = st.columns([3, 1])
         vid_p = col1.text_input("Describe video scene:", key="vid_prompt")
         
-        # Video settings (මුල් code එකේ නොතිබූ අලුත් options කිහිපයක්)
         v_col1, v_col2 = st.columns(2)
         v_ratio = v_col1.selectbox("Aspect Ratio", ["16:9", "9:16"])
         v_audio = v_col2.checkbox("Include Audio", value=True)
@@ -156,11 +143,10 @@ with tab_vid:
         if col2.button("Generate Video"):
             if vid_p:
                 with st.spinner("Alpha is directing via Wan Model... 🎬 (This may take a minute)"):
-                    # ඔයා එවපු අලුත් function එක මෙතනට call වෙනවා
                     vid_data = generate_video_pollinations(vid_p, duration=4, aspect_ratio=v_ratio, audio=v_audio)
                     if vid_data:
                         st.video(vid_data)
-                        st.download_button("Download Video 📥", vid_data, "alpha_video.mp4")
+                        st.download_button("Download Video 📥", vid_data.getvalue(), "alpha_video.mp4")
                     else:
                         st.error("Cinema Lab is currently busy or Request failed.")
         st.markdown('</div>', unsafe_allow_html=True)
