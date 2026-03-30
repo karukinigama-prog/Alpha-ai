@@ -24,18 +24,10 @@ if "logged_in" not in st.session_state: st.session_state.logged_in=False
 if "user_full_name" not in st.session_state: st.session_state.user_full_name=None
 
 # -----------------------
-# 3. Custom UI Styling (MODIFIED TO HIDE STREAMLIT ICONS)
+# 3. Custom UI Styling
 # -----------------------
 st.markdown("""
 <style>
-    /* Streamlit එකේ Branding සහ Icons අයින් කිරීම */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .viewerBadge_container__1QS1n {display: none !important;}
-    .styles_viewerBadge__1yB5_ {display: none !important;}
-    [data-testid="stStatusWidget"] {visibility: hidden;}
-    
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px; font-size: 22px; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); }
     .stChatMessage { border-radius: 15px; }
     div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; height: 45px; font-weight: bold; border: 1px solid #FFD700; transition: 0.3s; }
@@ -65,7 +57,6 @@ if not st.session_state.logged_in:
 # -----------------------
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
-# Using the secret key provided in chat context
 POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY", "sk_Z0oEnm05szbphnbZ9ClRCukKV2HyDMH5")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
@@ -85,16 +76,22 @@ async def speak_alpha(text):
             st.markdown(f'<audio autoplay src="data:audio/mp3;base64,{b64}">', unsafe_allow_html=True)
     except: pass
 
-def generate_video_robust(prompt):
-    models = ["guoyww/AnimateDiff", "cerspense/zeroscope_v2_576w"]
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    for model_id in models:
-        try:
-            API_URL = f"https://api-inference.huggingface.co/models/{model_id}"
-            response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60)
-            if response.status_code == 200: return response.content
-        except: continue
-    return None
+# --- UPDATE: POLLINATIONS VIDEO GENERATION ---
+def generate_video_pollinations(prompt, duration=4, aspect_ratio="16:9", audio=True):
+    encoded_prompt = urllib.parse.quote(prompt)
+    url = (
+        f"https://gen.pollinations.ai/video/{encoded_prompt}"
+        f"?model=wan&duration={duration}&aspectRatio={aspect_ratio}&audio={str(audio).lower()}"
+    )
+    headers = {"Authorization": f"Bearer {POLLINATIONS_KEY}"}
+    try:
+        response = requests.get(url, headers=headers, timeout=120) # Video වලට වැඩි වෙලාවක් Spinner එක තියන්න 120s දුන්නා
+        if response.status_code == 200:
+            return response.content
+        else:
+            return None
+    except Exception as e:
+        return None
 
 # -----------------------
 # 7. Sidebar Control
@@ -125,21 +122,16 @@ with tab_img:
         st.markdown('<div class="lab-box">', unsafe_allow_html=True)
         col1, col2 = st.columns([3, 1])
         img_p = col1.text_input("Describe image:", key="img_prompt")
-        
-        # Selection for Pollinations Models
         img_model = st.selectbox("Intelligence Mode:", ["flux", "turbo", "zimage", "p-image"], key="img_model_select")
         
         if col2.button("Generate Photo"):
             if img_p:
-                with st.spinner("Alpha is painting via Pollinations Engine... 🖌️"):
+                with st.spinner("Alpha is painting... 🖌️"):
                     try:
                         encoded_p = urllib.parse.quote(img_p)
                         seed = random.randint(1, 1000000)
-                        
-                        # UPDATED URL to gen.pollinations.ai
                         url = f"https://gen.pollinations.ai/image/{encoded_p}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"
                         headers = {"Authorization": f"Bearer {POLLINATIONS_KEY}"}
-                        
                         response = requests.get(url, headers=headers, timeout=60)
                         
                         if response.status_code == 200:
@@ -147,7 +139,6 @@ with tab_img:
                             st.download_button("Download Image 📥", response.content, f"alpha_{seed}.png", "image/png")
                         else:
                             st.error(f"Generation Failed: {response.status_code}")
-                            
                     except Exception as e: st.error(f"Error: {e}")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -156,15 +147,22 @@ with tab_vid:
         st.markdown('<div class="lab-box">', unsafe_allow_html=True)
         col1, col2 = st.columns([3, 1])
         vid_p = col1.text_input("Describe video scene:", key="vid_prompt")
+        
+        # Video settings (මුල් code එකේ නොතිබූ අලුත් options කිහිපයක්)
+        v_col1, v_col2 = st.columns(2)
+        v_ratio = v_col1.selectbox("Aspect Ratio", ["16:9", "9:16"])
+        v_audio = v_col2.checkbox("Include Audio", value=True)
+
         if col2.button("Generate Video"):
             if vid_p:
-                with st.spinner("Alpha is directing... 🎬"):
-                    vid_data = generate_video_robust(vid_p)
+                with st.spinner("Alpha is directing via Wan Model... 🎬 (This may take a minute)"):
+                    # ඔයා එවපු අලුත් function එක මෙතනට call වෙනවා
+                    vid_data = generate_video_pollinations(vid_p, duration=4, aspect_ratio=v_ratio, audio=v_audio)
                     if vid_data:
                         st.video(vid_data)
                         st.download_button("Download Video 📥", vid_data, "alpha_video.mp4")
                     else:
-                        st.error("Cinema Lab is currently busy.")
+                        st.error("Cinema Lab is currently busy or Request failed.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
@@ -182,9 +180,8 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("Alpha is thinking..."):
             res_placeholder = st.empty()
-            # Selected based on mode
-            selected_model = "llama-3.3-70b-versatile" if "Normal" in mode else "llama3-70b-8192" 
-            sys_msg = f"You are Alpha AI, a heartfelt assistant created by Hasith. Respond warmly."
+            selected_model = "llama-3.3-70b-versatile" if "Normal" in mode else "llama-3.1-8b-instant" 
+            sys_msg = f"You are Alpha AI, a heartfelt assistant created by Hasith Karunarathna. Respond warmly."
             try:
                 stream = groq_client.chat.completions.create(
                     model=selected_model,
