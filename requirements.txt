@@ -11,3 +11,4 @@ gradio_client
 requests
 supabase
 extra-streamlit-components
+duckduckgo_search
