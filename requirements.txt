@@ -10,3 +10,4 @@ huggingface_hub
 gradio_client
 requests
 supabase
+xtra-streamlit-components
