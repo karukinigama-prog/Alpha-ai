@@ -11,12 +11,10 @@ from duckduckgo_search import DDGS
 # -----------------------
 # 1. Supabase & API Setup
 # -----------------------
-# Secrets වලින් දත්ත ලබා ගැනීම
 URL = st.secrets["SUPABASE_URL"]
 KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(URL, KEY)
 
-# API Keys
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
 POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY")
@@ -36,7 +34,6 @@ if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "user_data" not in st.session_state: st.session_state.user_data = None
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# Auto-Login Logic
 saved_token = cookie_manager.get(cookie="alpha_master_token")
 if saved_token and not st.session_state.logged_in:
     try:
@@ -157,13 +154,16 @@ with tab_img:
             st.warning("Please describe your vision first!")
 
 # -----------------------
-# 7. Hybrid Chat System (Updated with GPT-OSS 120B)
+# 7. Hybrid Chat System (Updated with In-Chat Image Generation)
 # -----------------------
 st.divider()
 st.subheader("💬 Alpha Command Center")
 
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]): st.markdown(msg["content"])
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+        if "image_url" in msg:
+            st.image(msg["image_url"], use_container_width=True)
 
 user_input = st.chat_input("State your command, Master...")
 
@@ -175,8 +175,10 @@ if user_input:
         res_placeholder = st.empty()
         search_results = web_search_tool(user_input) if web_search_on else ""
         
+        # System message එකට රූප උත්පාදනය සඳහා රීතියක් එකතු කිරීම
         sys_msg = (
             f"Your name is Alpha AI. Created by Hasith from Bandarawela Central College. "
+            f"If the user wants to see an image or photo, start your reply with 'IMAGE_PROMPT: [English prompt description]' then continue in Sinhala. "
             f"Today's Date: {datetime.date.today()}. "
             f"User Name: {user_info['full_name']}. "
             f"If search results are provided, use them primarily: {search_results}"
@@ -185,7 +187,6 @@ if user_input:
         try:
             full_res = ""
             if "Pro" in mode:
-                # 🛠️ Pro Mode එකට GPT OSS 120B සම්බන්ධ කර ඇත
                 stream = groq_client.chat.completions.create(
                     model="openai/gpt-oss-120b",
                     messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
@@ -202,25 +203,45 @@ if user_input:
                     })
                 )
                 full_res = response.json()['choices'][0]['message']['content']
-                res_placeholder.markdown(full_res)
             else:
-                # Normal Mode (Llama 3.3)
                 stream = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
                     stream=True
                 )
             
-            # Streaming results for Groq models
             if "Ultra" not in mode:
                 for chunk in stream:
                     if chunk.choices[0].delta.content:
                         full_res += chunk.choices[0].delta.content
                         res_placeholder.markdown(full_res + "▌")
+
+            # Image logic
+            final_img_url = None
+            if "IMAGE_PROMPT:" in full_res:
+                try:
+                    parts = full_res.split("IMAGE_PROMPT:")
+                    img_prompt_str = parts[1].split("\n")[0].strip("[] ")
+                    # UI එකේ පෙන්නනකොට prompt එක අයින් කර පිරිසිදුව පෙන්වීම
+                    display_text = parts[0] + "\n" + "\n".join(parts[1].split("\n")[1:])
+                    
+                    seed = random.randint(1, 1000000)
+                    final_img_url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_prompt_str)}?width=1024&height=1024&seed={seed}&nologo=true"
+                    
+                    res_placeholder.markdown(display_text)
+                    st.image(final_img_url, use_container_width=True)
+                    full_res = display_text
+                except: pass
+            else:
                 res_placeholder.markdown(full_res)
                 
             if voice_on: asyncio.run(speak_alpha(full_res))
-            st.session_state.messages.append({"role": "assistant", "content": full_res})
+            
+            # Save to session
+            msg_to_save = {"role": "assistant", "content": full_res}
+            if final_img_url: msg_to_save["image_url"] = final_img_url
+            st.session_state.messages.append(msg_to_save)
+            
         except Exception as e: 
             st.error(f"Alpha System Error: {e}")
 
