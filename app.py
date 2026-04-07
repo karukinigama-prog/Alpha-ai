@@ -9,7 +9,7 @@ import random, urllib.parse
 from duckduckgo_search import DDGS
 
 # -----------------------
-# 1. Supabase & API Setup (මුල් විදිහටම)
+# 1. Supabase & API Setup
 # -----------------------
 # Secrets වලින් දත්ත ලබා ගැනීම
 URL = st.secrets["SUPABASE_URL"]
@@ -19,7 +19,7 @@ supabase: Client = create_client(URL, KEY)
 # API Keys
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 HF_TOKEN = st.secrets.get("HF_TOKEN")
-POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY") # මේක පාවිච්චි කරනවා
+POLLINATIONS_KEY = st.secrets.get("POLLINATIONS_API_KEY")
 OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
@@ -28,7 +28,7 @@ hf_client = InferenceClient(token=HF_TOKEN)
 st.set_page_config(page_title="Alpha AI | Pro Business Edition", layout="wide", page_icon="⚡")
 
 # -----------------------
-# 2. Cookie & Session Management (මුල් විදිහටම)
+# 2. Cookie & Session Management
 # -----------------------
 cookie_manager = stx.CookieManager()
 
@@ -36,7 +36,7 @@ if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "user_data" not in st.session_state: st.session_state.user_data = None
 if "messages" not in st.session_state: st.session_state.messages = []
 
-# Auto-Login
+# Auto-Login Logic
 saved_token = cookie_manager.get(cookie="alpha_master_token")
 if saved_token and not st.session_state.logged_in:
     try:
@@ -47,7 +47,7 @@ if saved_token and not st.session_state.logged_in:
     except: pass
 
 # -----------------------
-# 3. Helper Functions (මුල් විදිහටම)
+# 3. Helper Functions
 # -----------------------
 def generate_master_key():
     return f"ALPHA-{random.randint(1000, 9999)}-{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
@@ -73,7 +73,7 @@ def web_search_tool(query):
     return ""
 
 # -----------------------
-# 4. Master Key Auth UI (මුල් විදිහටම)
+# 4. Master Key Auth UI
 # -----------------------
 if not st.session_state.logged_in:
     st.markdown('<h1 style="text-align:center; color:#FFD700;">⚡ ALPHA AI CORE ACCESS</h1>', unsafe_allow_html=True)
@@ -81,7 +81,7 @@ if not st.session_state.logged_in:
     
     auth_tab1, auth_tab2 = st.tabs(["🔑 Sign In", "📝 Create Account"])
 
-    with auth_tab2: # Registration
+    with auth_tab2: 
         st.subheader("Register for Alpha AI")
         reg_name = st.text_input("Full Name", placeholder="Enter your name")
         reg_email = st.text_input("Email Address", placeholder="Enter your email")
@@ -97,7 +97,7 @@ if not st.session_state.logged_in:
                 except: st.error("Registration failed. Email might already exist.")
             else: st.info("Please fill all details.")
 
-    with auth_tab1: # Login
+    with auth_tab1: 
         st.subheader("Login with Master Key")
         log_email = st.text_input("Email", key="login_email")
         log_key = st.text_input("Master Key", type="password", key="login_key")
@@ -130,7 +130,6 @@ with st.sidebar:
     web_search_on = st.checkbox("Live Web Search", value=False)
     voice_on = st.checkbox("Voice Output", value=True)
     
-    # Sidebar එකෙන් Chat ඉවත් කර Log Out පමණක් තැබීම
     st.divider()
     if st.button("Log Out"):
         cookie_manager.delete("alpha_master_token")
@@ -138,46 +137,34 @@ with st.sidebar:
         st.rerun()
 
 # -----------------------
-# 6. Multimedia Labs (Images & Cinema)
+# 6. Multimedia Labs
 # -----------------------
 tab_img, tab_vid = st.tabs(["🖼 Image Lab", "🎬 Cinema Lab"])
 
 with tab_img:
     col1, col2 = st.columns([3, 1])
-    img_p = col1.text_input("Describe your vision:", key="img_prompt", placeholder="Cow") # Cow එක placeholder එකක්
+    img_p = col1.text_input("Describe your vision:", key="img_prompt", placeholder="A futuristic city in Sri Lanka")
     img_model = st.selectbox("Model:", ["flux", "turbo", "zimage", "p-image"])
     
     if col2.button("Generate"):
         if img_p:
             with st.spinner("Generating..."):
                 seed = random.randint(1, 1000000)
-                
-                # 🛠️ Pollinations API Key එක URL එකට එකතු කිරීම
-                # ඔයා ඉල්ලපු විදිහටම Gor (Pollinations) Key එක දෙන්න මෙතනින් පුළුවන්
-                if POLLINATIONS_KEY:
-                    # Key එක තියෙනවා නම් ඒක headers හෝ query param එකක් ලෙස යවන්න පුළුවන්.
-                    # Pollinations වලට query param එකක් ලෙස යැවීම මෙතනදී පහසුයි:
-                    url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_p)}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true&private=true&key={POLLINATIONS_KEY}"
-                else:
-                    # Key එක නැතිනම් සාමාන්‍ය විදිහට
-                    url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_p)}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true"
-                
+                auth_param = f"&key={POLLINATIONS_KEY}" if POLLINATIONS_KEY else ""
+                url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_p)}?width=1024&height=1024&seed={seed}&model={img_model}&nologo=true&private=true{auth_param}"
                 st.image(url, use_container_width=True)
         else:
             st.warning("Please describe your vision first!")
 
 # -----------------------
-# 7. Hybrid Chat System (Now on Main Screen!)
+# 7. Hybrid Chat System (Updated with GPT-OSS 120B)
 # -----------------------
-# Sidebar එකෙන් ඉවත් කරMain Screen එකේ Labs ටැබ් වලට යටින් තැබීම
 st.divider()
 st.subheader("💬 Alpha Command Center")
 
-# පරණ මැසේජ් පෙන්වීම
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-# අලුත් Chat Input එක Main Screen එකේ
 user_input = st.chat_input("State your command, Master...")
 
 if user_input:
@@ -196,8 +183,9 @@ if user_input:
         )
         
         try:
+            full_res = ""
             if "Pro" in mode:
-                # GPT OSS 120B Model
+                # 🛠️ Pro Mode එකට GPT OSS 120B සම්බන්ධ කර ඇත
                 stream = groq_client.chat.completions.create(
                     model="openai/gpt-oss-120b",
                     messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
@@ -216,14 +204,15 @@ if user_input:
                 full_res = response.json()['choices'][0]['message']['content']
                 res_placeholder.markdown(full_res)
             else:
+                # Normal Mode (Llama 3.3)
                 stream = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
                     stream=True
                 )
             
+            # Streaming results for Groq models
             if "Ultra" not in mode:
-                full_res = ""
                 for chunk in stream:
                     if chunk.choices[0].delta.content:
                         full_res += chunk.choices[0].delta.content
@@ -232,7 +221,8 @@ if user_input:
                 
             if voice_on: asyncio.run(speak_alpha(full_res))
             st.session_state.messages.append({"role": "assistant", "content": full_res})
-        except Exception as e: st.error(f"Error: {e}")
+        except Exception as e: 
+            st.error(f"Alpha System Error: {e}")
 
 st.divider()
 st.caption("Alpha AI Ultimate Edition | Powering the Future | Created by Hasith")
