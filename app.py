@@ -154,7 +154,7 @@ with tab_img:
             st.warning("Please describe your vision first!")
 
 # -----------------------
-# 7. Hybrid Chat System (Updated with In-Chat Image Generation)
+# 7. Hybrid Chat System (Final Fix)
 # -----------------------
 st.divider()
 st.subheader("💬 Alpha Command Center")
@@ -175,13 +175,10 @@ if user_input:
         res_placeholder = st.empty()
         search_results = web_search_tool(user_input) if web_search_on else ""
         
-        # System message එකට රූප උත්පාදනය සඳහා රීතියක් එකතු කිරීම
         sys_msg = (
             f"Your name is Alpha AI. Created by Hasith from Bandarawela Central College. "
-            f"If the user wants to see an image or photo, start your reply with 'IMAGE_PROMPT: [English prompt description]' then continue in Sinhala. "
-            f"Today's Date: {datetime.date.today()}. "
-            f"User Name: {user_info['full_name']}. "
-            f"If search results are provided, use them primarily: {search_results}"
+            f"If the user wants an image, start exactly with 'IMAGE_PROMPT: [description]' and then talk. "
+            f"Today's Date: {datetime.date.today()}. User: {user_info['full_name']}. {search_results}"
         )
         
         try:
@@ -190,8 +187,7 @@ if user_input:
                 stream = groq_client.chat.completions.create(
                     model="openai/gpt-oss-120b",
                     messages=[{"role": "system", "content": sys_msg}] + st.session_state.messages[-10:],
-                    temperature=0.7,
-                    stream=True
+                    temperature=0.7, stream=True
                 )
             elif "Ultra" in mode:
                 response = requests.post(
@@ -216,34 +212,38 @@ if user_input:
                         full_res += chunk.choices[0].delta.content
                         res_placeholder.markdown(full_res + "▌")
 
-            # Image logic
+            # --- Image Logic Fix ---
             final_img_url = None
             if "IMAGE_PROMPT:" in full_res:
                 try:
+                    # 'IMAGE_PROMPT:' කොටස සොයාගෙන prompt එක වෙන් කර ගැනීම
                     parts = full_res.split("IMAGE_PROMPT:")
-                    img_prompt_str = parts[1].split("\n")[0].strip("[] ")
-                    # UI එකේ පෙන්නනකොට prompt එක අයින් කර පිරිසිදුව පෙන්වීම
+                    prompt_part = parts[1].split("\n")[0].strip()
+                    # prompt එකේ මුල අග තියෙන [] හෝ {} අයින් කිරීම
+                    clean_prompt = prompt_part.replace("[", "").replace("]", "").replace("{", "").replace("}", "")
+                    
+                    # ඉතිරි සිංහල විස්තරය පමණක් පෙන්වීමට
                     display_text = parts[0] + "\n" + "\n".join(parts[1].split("\n")[1:])
                     
                     seed = random.randint(1, 1000000)
-                    final_img_url = f"https://gen.pollinations.ai/image/{urllib.parse.quote(img_prompt_str)}?width=1024&height=1024&seed={seed}&nologo=true"
+                    # URL එක encode කිරීම (විශේෂ අක්ෂර නිසා error නොවීමට)
+                    encoded_prompt = urllib.parse.quote(clean_prompt)
+                    final_img_url = f"https://gen.pollinations.ai/image/{encoded_prompt}?width=1024&height=1024&seed={seed}&nologo=true"
                     
                     res_placeholder.markdown(display_text)
                     st.image(final_img_url, use_container_width=True)
                     full_res = display_text
-                except: pass
+                except: res_placeholder.markdown(full_res)
             else:
                 res_placeholder.markdown(full_res)
                 
             if voice_on: asyncio.run(speak_alpha(full_res))
             
-            # Save to session
             msg_to_save = {"role": "assistant", "content": full_res}
             if final_img_url: msg_to_save["image_url"] = final_img_url
             st.session_state.messages.append(msg_to_save)
             
-        except Exception as e: 
-            st.error(f"Alpha System Error: {e}")
+        except Exception as e: st.error(f"Alpha System Error: {e}")
 
 st.divider()
 st.caption("Alpha AI Ultimate Edition | Powering the Future | Created by Hasith")
