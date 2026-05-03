@@ -247,13 +247,15 @@ async def run_multi_agent(query):
     status_box = st.empty()
     status_box.markdown('<div class="status-card">⚡ SYSTEM: DNA Analysis Initiated...</div>', unsafe_allow_html=True)
     
-    # Asynchronous calls for efficiency (Efficiency Update)
+    # Session State Fix: Move data to local variables before thread execution
+    context_msgs = list(st.session_state.messages[-5:])
+    
     loop = asyncio.get_event_loop()
     
     # Task 1: Lead Analysis (gpt-4o)
     task1 = loop.run_in_executor(None, lambda: openai_client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role":"system","content": dna_system_prompt}] + st.session_state.messages[-5:] + [{"role":"user","content": query}]
+        messages=[{"role":"system","content": dna_system_prompt}] + context_msgs + [{"role":"user","content": query}]
     ))
     
     # Task 2: Deep Reasoning (o1)
