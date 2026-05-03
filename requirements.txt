@@ -7,3 +7,4 @@ gTTS
 Pillow
 duckduckgo-search
 supabase
+openai
