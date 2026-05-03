@@ -240,16 +240,15 @@ async def run_multi_agent(query):
     [CORE IDENTITY: ALPHA AI ULTIMATE V2.6]
     - DEVELOPER: Hasith (Bandarawela Central College).
     - DNA PROTOCOL: Self-evolving logic.
-    - TEAM: gpt-4o (Lead & Consolidator), o1 (Complex Reasoner).
+    - TEAM: gpt-4o (Lead & Consolidator), o1-mini (Complex Reasoner).
     """
     
     # UI Phase 1: Initiation
     status_box = st.empty()
     status_box.markdown('<div class="status-card">⚡ SYSTEM: DNA Analysis Initiated...</div>', unsafe_allow_html=True)
     
-    # Session State Fix: Move data to local variables before thread execution
+    # Fix Session State Access
     context_msgs = list(st.session_state.messages[-5:])
-    
     loop = asyncio.get_event_loop()
     
     # Task 1: Lead Analysis (gpt-4o)
@@ -258,19 +257,22 @@ async def run_multi_agent(query):
         messages=[{"role":"system","content": dna_system_prompt}] + context_msgs + [{"role":"user","content": query}]
     ))
     
-    # Task 2: Deep Reasoning (o1)
+    # Task 2: Deep Reasoning (o1-mini)
     task2 = loop.run_in_executor(None, lambda: openai_client.chat.completions.create(
-        model="o1",
-        messages=[{"role":"user","content": f"Analyze and solve: {query}"}]
+        model="o1-mini",
+        messages=[{"role":"user","content": f"Reason deeply about: {query}"}]
     ))
     
-    status_box.markdown('<div class="status-card">🧬 AGENTS: gpt-4o & o1 Synchronizing in parallel...</div>', unsafe_allow_html=True)
+    status_box.markdown('<div class="status-card">🧬 AGENTS: gpt-4o & o1-mini Synchronizing...</div>', unsafe_allow_html=True)
     
-    # Wait for both tasks (Efficiency Update)
-    res1, res2 = await asyncio.gather(task1, task2)
-    
-    lead_out = res1.choices[0].message.content
-    reason_out = res2.choices[0].message.content
+    try:
+        res1, res2 = await asyncio.gather(task1, task2)
+        lead_out = res1.choices[0].message.content
+        reason_out = res2.choices[0].message.content
+    except Exception:
+        lead_out = "Agent communication failed."
+        reason_out = "Reasoner unavailable."
+        status_box.markdown('<div class="status-card">⚠️ ERROR: Agent Desync - Falling back to Solo Core</div>', unsafe_allow_html=True)
     
     status_box.markdown('<div class="status-card">✨ UI: Finalizing Alpha Response...</div>', unsafe_allow_html=True)
     
@@ -278,7 +280,7 @@ async def run_multi_agent(query):
     final_res = openai_client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role":"system","content": f"{dna_system_prompt}\nCombine inputs into a final creative Sinhala output. Include [LIVE_UI] if needed."},
-                  {"role":"user","content": f"Lead: {lead_out}\nReasoner: {reason_out}\nOriginal Query: {query}"}]
+                  {"role":"user","content": f"Lead: {lead_out}\nReasoner: {reason_out}\nOriginal: {query}"}]
     )
     
     status_box.empty()
