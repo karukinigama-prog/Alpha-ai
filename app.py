@@ -52,7 +52,7 @@ if user_input:
         try:
             # මෙහිදී gpt-5-nano ඉවත් කර gpt-4 මාදිලිය ඇතුළත් කර ඇත
             stream = client.chat.completions.create(
-                model="gpt-4-1", 
+                model="Https://github.com/marketplace/models/azure-openai/gpt-4-1", 
                 messages=[
                     {"role": "system", "content": "ඔබ හසිත් කරුණාරත්න විසින් නිර්මාණය කළ Alpha AI වේ. සරලව පිළිතුරු දෙන්න."},
                     {"role": "user", "content": user_input}
