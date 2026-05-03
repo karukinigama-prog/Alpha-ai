@@ -60,7 +60,7 @@ if "quick_prompt" not in st.session_state: st.session_state.quick_prompt = None
 if 'history' not in st.session_state: st.session_state.history = []
 
 # -----------------------
-# 4. Custom UI Styling (Enhanced UX & Premium Gold)
+# 4. Custom UI Styling (Premium Aesthetic)
 # -----------------------
 st.markdown("""
 <style>  
@@ -69,7 +69,7 @@ st.markdown("""
     .premium-banner { width:100%; padding:15px; background: linear-gradient(90deg, #FFD700, #FF8C00); color:#000; border-radius:15px; text-align:center; font-weight:bold; margin-bottom:20px; font-size: 20px; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); }  
     div.stButton > button { background-color: #1e1e1e; color: #FFD700; border-radius: 12px; width: 100%; font-weight: bold; border: 2px solid #FFD700; transition: 0.3s; height: 3em; }  
     div.stButton > button:hover { background-color: #FFD700; color: #000; transform: translateY(-2px); box-shadow: 0px 5px 15px rgba(255,215,0,0.4); }  
-    .status-card { padding: 10px; border-radius: 10px; background: rgba(255,215,0,0.1); border-left: 5px solid #FFD700; margin-bottom: 10px; font-family: monospace; font-size: 0.9em; }
+    .status-card { padding: 10px; border-radius: 10px; background: rgba(255,215,0,0.05); border-left: 5px solid #FFD700; margin-bottom: 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 0.9em; color: #FFD700; }
     .ad-slot-premium { border: 1px dashed #FFD700; border-radius: 10px; padding: 10px; text-align: center; color: #FFD700; background: rgba(255,215,0,0.05); margin: 10px 0; font-size: 12px; text-transform: uppercase; }
     .lab-box { border: 1px solid #333; padding: 20px; border-radius: 15px; background: rgba(14, 17, 23, 0.8); margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }  
     .limit-box { padding:10px; border-radius:10px; background:#262730; border:1px solid #FFD700; text-align:center; margin-bottom:10px; font-weight:bold; }
@@ -128,7 +128,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -----------------------
-# 7. Sidebar (Quick Actions & Ads)
+# 7. Sidebar
 # -----------------------
 with st.sidebar:
     st.image("https://img.icons8.com/fluent/100/000000/artificial-intelligence.png", width=60)
@@ -140,18 +140,7 @@ with st.sidebar:
     else: st.markdown(f'<div class="limit-box">🖼 Photos: {img_count}/5</div>', unsafe_allow_html=True)
 
     st.write("---")
-    st.subheader("⚡ Quick Actions")
-    q_actions = {
-        "📘 FB Post Generator": "Create a creative Sinhala Facebook post about: ",
-        "🎬 YouTube Script": "Write a YouTube video script for: ",
-        "📚 Study Help": "Explain this subject simply in Sinhala: "
-    }
-    for label, prompt in q_actions.items():
-        if st.button(label): st.session_state.quick_prompt = prompt
-
-    st.write("---")
     voice_on = st.checkbox("Voice Response", value=True)
-    ultra_mode = st.toggle("🚀 ULTRA MODE (Async Active)", value=True)
     
     if st.button("Log Out"):
         st.session_state.logged_in = False
@@ -161,7 +150,7 @@ with st.sidebar:
 st.markdown(f'<div class="premium-banner">⚡ ALPHA AI ULTIMATE | Created by Hasith</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 8. Tabs (The Functional Labs)
+# 8. Tabs (Functional Labs)
 # -----------------------
 tab_img, tab_vid, tab_voice, tab_vision, tab_map = st.tabs(["🖼 Image", "🎬 Cinema", "🎙️ Voice", "👁️ Vision", "🧠 Map"])
 
@@ -181,7 +170,7 @@ with tab_img:
 
 with tab_vid:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-    st.subheader("🎬 Titan Video Engine (No-Linux Mode)")
+    st.subheader("🎬 Titan Video Engine")
     vid_p = st.text_input("Describe video scene:", key="vid_p_titan")
     if st.button("Generate Video 🎥", key="vid_btn"):
         if vid_p:
@@ -204,7 +193,7 @@ with tab_voice:
 
 with tab_vision:
     st.markdown('<div class="lab-box">', unsafe_allow_html=True)
-    st.subheader("👁️ Alpha Vision Lab (Llama-3.2-90B)")
+    st.subheader("👁️ Alpha Vision Lab")
     v_file = st.file_uploader("Upload Image:", type=["jpg","png","jpeg"])
     if v_file:
         v_bytes = v_file.read()
@@ -224,7 +213,7 @@ with tab_map:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------
-# 9. Hybrid Chat (Optimized Multi-Agent & UX)
+# 9. Optimized Chat (GPT-4o Philosophical Mode)
 # -----------------------
 st.markdown('<div class="ad-slot-premium">📢 PROMOTED: Ella Cab and Tours - Contact Sumith 📢</div>', unsafe_allow_html=True)
 
@@ -235,56 +224,34 @@ current_input = st.chat_input("Command Alpha...")
 final_q = current_input or st.session_state.quick_prompt
 st.session_state.quick_prompt = None
 
-async def run_multi_agent(query):
-    dna_system_prompt = """
-    [CORE IDENTITY: ALPHA AI ULTIMATE V2.6]
+def run_alpha_core(query):
+    # දාර්ශනික සහ පිරිසිදු සිංහලෙන් පිළිතුරු දීමට සැකසූ System Prompt එක
+    dna_system_prompt = f"""
+    [CORE IDENTITY: ALPHA AI ULTIMATE V2.7]
     - DEVELOPER: Hasith (Bandarawela Central College).
-    - DNA PROTOCOL: Self-evolving logic.
-    - TEAM: gpt-4o (Lead & Consolidator), o1-mini (Complex Reasoner).
+    - PERSONALITY: Philosophical, Sophisticated, Professional.
+    - INSTRUCTIONS: Speak in elegant Sinhala. Avoid technical jargon or internal thought process descriptions. 
+    - Provide deep, meaningful answers. If the user asks who you are, state you are Alpha AI, created by Hasith Karunarathna.
+    - Never include [Reasoner] or [LIVE_UI] tags in the text unless specifically generating a UI component.
     """
     
-    # UI Phase 1: Initiation
     status_box = st.empty()
-    status_box.markdown('<div class="status-card">⚡ SYSTEM: DNA Analysis Initiated...</div>', unsafe_allow_html=True)
+    status_box.markdown('<div class="status-card">⚡ Alpha Intelligence Synchronizing...</div>', unsafe_allow_html=True)
     
-    # Fix Session State Access
-    context_msgs = list(st.session_state.messages[-5:])
-    loop = asyncio.get_event_loop()
-    
-    # Task 1: Lead Analysis (gpt-4o)
-    task1 = loop.run_in_executor(None, lambda: openai_client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role":"system","content": dna_system_prompt}] + context_msgs + [{"role":"user","content": query}]
-    ))
-    
-    # Task 2: Deep Reasoning (o1-mini)
-    task2 = loop.run_in_executor(None, lambda: openai_client.chat.completions.create(
-        model="o1-mini",
-        messages=[{"role":"user","content": f"Reason deeply about: {query}"}]
-    ))
-    
-    status_box.markdown('<div class="status-card">🧬 AGENTS: gpt-4o & o1-mini Synchronizing...</div>', unsafe_allow_html=True)
+    context_msgs = list(st.session_state.messages[-6:])
     
     try:
-        res1, res2 = await asyncio.gather(task1, task2)
-        lead_out = res1.choices[0].message.content
-        reason_out = res2.choices[0].message.content
-    except Exception:
-        lead_out = "Agent communication failed."
-        reason_out = "Reasoner unavailable."
-        status_box.markdown('<div class="status-card">⚠️ ERROR: Agent Desync - Falling back to Solo Core</div>', unsafe_allow_html=True)
-    
-    status_box.markdown('<div class="status-card">✨ UI: Finalizing Alpha Response...</div>', unsafe_allow_html=True)
-    
-    # Final Consolidation
-    final_res = openai_client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role":"system","content": f"{dna_system_prompt}\nCombine inputs into a final creative Sinhala output. Include [LIVE_UI] if needed."},
-                  {"role":"user","content": f"Lead: {lead_out}\nReasoner: {reason_out}\nOriginal: {query}"}]
-    )
+        # GPT-4o පමණක් භාවිතා කිරීම (Highly Optimized)
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role":"system","content": dna_system_prompt}] + context_msgs + [{"role":"user","content": query}]
+        )
+        full_ans = response.choices[0].message.content
+    except Exception as e:
+        full_ans = "ක්ෂමාවන්න, පද්ධතියේ ඇති වූ තාක්ෂණික දෝෂයක් හේතුවෙන් පිළිතුර සැකසීමට අපහසු විය."
     
     status_box.empty()
-    return final_res.choices[0].message.content
+    return full_ans
 
 if final_q:
     st.session_state.messages.append({"role":"user","content":final_q})
@@ -292,7 +259,8 @@ if final_q:
     
     with st.chat_message("assistant"):
         live_ui_placeholder = st.empty()
-        full_ans = asyncio.run(run_multi_agent(final_q))
+        # සෘජුවම GPT-4o මගින් පිළිතුර ලබා ගැනීම
+        full_ans = run_alpha_core(final_q)
         
         st.markdown(full_ans, unsafe_allow_html=True)
         
@@ -305,4 +273,4 @@ if final_q:
         if voice_on: asyncio.run(speak_alpha(full_ans.replace("[LIVE_UI]", "").replace("[/LIVE_UI]", "")))
         st.session_state.messages.append({"role":"assistant","content":full_ans})
 
-st.markdown('<div class="ad-slot-premium">Alpha AI v2.6 | DNA, Multi-Agent & Live UI Active</div>', unsafe_allow_html=True)
+st.markdown('<div class="ad-slot-premium">Alpha AI v2.7 | Pure Intelligence Mode Active</div>', unsafe_allow_html=True)
