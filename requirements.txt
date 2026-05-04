@@ -9,4 +9,3 @@ duckduckgo-search
 supabase
 openai
 streamlit_agraph
-zipfile
