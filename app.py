@@ -74,6 +74,20 @@ section[data-testid="stSidebar"] {
     border-right: 1px solid var(--border) !important;
 }
 
+/* Fix Streamlit sidebar toggle arrow button */
+button[data-testid="collapsedControl"] svg,
+button[data-testid="baseButton-headerNoPadding"] svg { display: none !important; }
+
+button[data-testid="collapsedControl"]::after {
+    content: "›" !important;
+    font-size: 1.4rem !important;
+    color: var(--accent) !important;
+    font-family: 'Syne', sans-serif !important;
+}
+button[data-testid="collapsedControl"][aria-expanded="true"]::after {
+    content: "‹" !important;
+}
+
 /* Sidebar title — NO ::before pseudo-element */
 .sidebar-title {
     font-size: 0.7rem;
