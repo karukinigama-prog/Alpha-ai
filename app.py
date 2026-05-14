@@ -74,7 +74,7 @@ section[data-testid="stSidebar"] {
     border-right: 1px solid var(--border) !important;
 }
 
-/* Sidebar decorative arrows & style */
+/* Sidebar title — NO ::before pseudo-element */
 .sidebar-title {
     font-size: 0.7rem;
     letter-spacing: 3px;
@@ -85,8 +85,8 @@ section[data-testid="stSidebar"] {
     padding: 0.5rem;
     display: flex;
     align-items: center;
+    gap: 6px;
 }
-.sidebar-title::before { content: "» "; margin-right: 8px; }
 
 section[data-testid="stSidebar"] .stButton button {
     background: rgba(255, 255, 255, 0.03) !important;
@@ -145,14 +145,14 @@ div[data-testid="stChatInput"] > div {
 
 # ─── Sidebar ───────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown('<div class="sidebar-title">QUICK ACTIONS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-title">⚡ QUICK ACTIONS</div>', unsafe_allow_html=True)
     for label, prefix in QUICK_PROMPTS.items():
-        if st.button(f"➔ {label}", key=f"qp_{label}", use_container_width=True):
+        if st.button(label, key=f"qp_{label}", use_container_width=True):
             st.session_state["prefill"] = prefix
             st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-title">SYSTEM</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-title">🔧 SYSTEM</div>', unsafe_allow_html=True)
     if st.button("🗑️ Reset Neural Link", use_container_width=True, key="clear_btn"):
         st.session_state.messages = []
         st.session_state.prefill = ""
