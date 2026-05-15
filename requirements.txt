@@ -1,12 +1,3 @@
-streamlit
-huggingface_hub
-groq
-requests
-edge-tts
-gTTS
-Pillow
-duckduckgo-search
-supabase
-openai
-streamlit_agraph
+streamlit>=1.32.0
+requests>=2.31.0
 markdown>=3.5.0
