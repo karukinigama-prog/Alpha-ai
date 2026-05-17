@@ -1,8 +1,10 @@
 import streamlit as st
+from streamlit_cookies_controller import CookieController
 import requests
 import time
 import base64
 import re
+from datetime import datetime
 
 st.set_page_config(
     page_title="Nexo AI",
@@ -80,33 +82,30 @@ st.markdown("""
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --bg:         #070712;
-    --panel:      #0c0c1e;
-    --card:       #11112a;
-    --card2:      #14143a;
-    --border:     rgba(255,255,255,0.06);
-    --border-p:   rgba(139,92,246,0.35);
-    --purple:     #7c3aed;
-    --purple-lt:  #a855f7;
-    --purple-xt:  #c084fc;
-    --cyan:       #06b6d4;
-    --pink:       #ec4899;
-    --text:       #f0f0ff;
-    --text-dim:   #4a5070;
-    --text-mid:   #8890b0;
-    --green:      #22c55e;
-    --user-bg:    #3b1d8a;
-    --ai-bg:      #0d0d26;
+    --bg:        #070712;
+    --card:      #0f0f26;
+    --card2:     #11112a;
+    --border:    rgba(255,255,255,0.06);
+    --border-p:  rgba(139,92,246,0.35);
+    --purple:    #7c3aed;
+    --plt:       #a855f7;
+    --pxt:       #c084fc;
+    --cyan:      #06b6d4;
+    --text:      #f0f0ff;
+    --dim:       #3a3a5c;
+    --mid:       #7a80a0;
+    --green:     #22c55e;
+    --red:       #ef4444;
+    --ai-bg:     #0d0d26;
 }
 
 html, body, .stApp {
     font-family: 'Outfit', sans-serif !important;
     background: var(--bg) !important;
     color: var(--text) !important;
-    overflow-x: hidden;
+    overflow-x: hidden !important;
 }
 
-/* Kill ALL Streamlit chrome */
 #MainMenu, header, footer,
 [data-testid="stToolbar"],
 [data-testid="collapsedControl"],
@@ -116,353 +115,192 @@ section[data-testid="stSidebar"],
 .stDeployButton,
 [data-testid="manage-app-button"] { display: none !important; visibility: hidden !important; }
 
-.block-container { padding: 0 !important; max-width: 100% !important; }
+.block-container { padding: 0 16px !important; max-width: 100% !important; overflow-x: hidden !important; }
 
-/* ── AMBIENT GLOW BACKGROUND ── */
 .stApp::before {
-    content: '';
-    position: fixed;
-    inset: 0;
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background:
-        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(124,58,237,0.12) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 35% at 10% 80%, rgba(6,182,212,0.07) 0%, transparent 60%),
-        radial-gradient(ellipse 40% 30% at 50% 50%, rgba(168,85,247,0.04) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
+        radial-gradient(ellipse 70% 40% at 50% 0%, rgba(124,58,237,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(124,58,237,0.1) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 35% at 10% 80%, rgba(6,182,212,0.07) 0%, transparent 60%);
 }
 
-/* ── TOP BAR ── */
-.nexo-topbar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 200;
-    background: rgba(7,7,18,0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 18px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-.nexo-brand {
+/* ── SPLASH ── */
+.splash {
+    position: fixed; inset: 0; z-index: 999; background: var(--bg);
     display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px;
+}
+.s-logo {
+    font-size: 4.5rem; font-weight: 900; letter-spacing: -3px;
+    background: linear-gradient(135deg, #c084fc, #7c3aed, #06b6d4);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; line-height: 1;
+    animation: zoomIn .8s cubic-bezier(.16,1,.3,1) both;
+    filter: drop-shadow(0 0 32px rgba(124,58,237,0.5));
+}
+@keyframes zoomIn { from{opacity:0;transform:scale(.6) translateY(16px)} to{opacity:1;transform:scale(1) translateY(0)} }
+.s-tag { font-size: 0.6rem; letter-spacing: 4px; text-transform: uppercase; color: var(--dim); animation: fadeIn .6s .3s both; }
+.s-bar-wrap { width: 160px; height: 2px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
+.s-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #7c3aed, #06b6d4); border-radius: 10px; animation: loadBar 1.8s ease forwards; }
+@keyframes loadBar { to{width:100%} }
+@keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+@keyframes fadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes popIn   { from{opacity:0;transform:scale(.4)} to{opacity:1;transform:scale(1)} }
+
+/* ── LOGIN ── */
+.l-logo {
+    font-size: 2.6rem; font-weight: 900; letter-spacing: -2px;
+    background: linear-gradient(135deg, #c084fc, #7c3aed, #06b6d4);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; line-height: 1;
+    filter: drop-shadow(0 0 20px rgba(124,58,237,0.35));
+}
+.l-sub { font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; color: var(--dim); margin-top: 4px; }
+.l-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 22px 18px;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(124,58,237,0.07);
+    margin-top: 8px;
+}
+.l-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 3px; }
+.l-desc  { font-size: 0.75rem; color: var(--mid); margin-bottom: 16px; }
+.l-footer { text-align: center; margin-top: 12px; font-size: 0.63rem; color: var(--dim); }
+
+/* ── PROFILE CARD ── */
+.profile-card {
+    background: var(--card); border: 1px solid var(--border-p);
+    border-radius: 20px; padding: 20px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    animation: fadeUp .25s cubic-bezier(.16,1,.3,1);
+    margin-bottom: 16px;
+}
+.pc-avatar {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #06b6d4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; margin: 0 auto 10px;
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.2), 0 4px 16px rgba(124,58,237,0.3);
+    animation: popIn .4s cubic-bezier(.16,1,.3,1);
+}
+.pc-name { font-size: 1rem; font-weight: 800; text-align: center; margin-bottom: 2px; }
+.pc-email { font-size: 0.7rem; color: var(--mid); text-align: center; margin-bottom: 14px; }
+.pc-divider { height: 1px; background: var(--border); margin: 12px 0; }
+.pc-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; font-size: 0.75rem; color: var(--mid);
+    border-bottom: 1px solid var(--border);
+}
+.pc-row:last-child { border-bottom: none; }
+.pc-row span:last-child { color: var(--pxt); font-weight: 600; font-size: 0.72rem; }
+
+/* ── MAIN APP ── */
+.nexo-topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    background: rgba(7,7,18,0.92); backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 18px; display: flex; align-items: center; justify-content: space-between;
 }
 .nexo-logo-text {
-    font-size: 1.7rem;
-    font-weight: 900;
-    letter-spacing: -1.5px;
+    font-size: 1.7rem; font-weight: 900; letter-spacing: -1.5px;
     background: linear-gradient(135deg, #c084fc 0%, #7c3aed 40%, #06b6d4 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    line-height: 1;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; line-height: 1;
 }
-.nexo-sub-text {
-    font-size: 0.55rem;
-    letter-spacing: 2.5px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    margin-top: 2px;
-}
-.topbar-right {
-    display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
-}
+.nexo-sub-text { font-size: 0.55rem; letter-spacing: 2.5px; color: var(--dim); text-transform: uppercase; margin-top: 2px; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
 .badge-row { display: flex; gap: 5px; }
-.nbadge {
-    padding: 2px 8px; border-radius: 20px;
-    font-size: 0.58rem; font-weight: 700;
-    letter-spacing: 0.8px; text-transform: uppercase;
-}
-.nbadge.pro {
-    background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(168,85,247,0.2));
-    border: 1px solid rgba(124,58,237,0.4); color: var(--purple-xt);
-}
-.nbadge.live {
-    background: rgba(34,197,94,0.1);
-    border: 1px solid rgba(34,197,94,0.3); color: var(--green);
-}
-.online-pill {
-    display: flex; align-items: center; gap: 4px;
-    font-size: 0.62rem; color: var(--green); font-weight: 500;
-}
-.odot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 8px rgba(34,197,94,0.8);
-    animation: pdot 2s infinite;
-}
+.nbadge { padding: 2px 8px; border-radius: 20px; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
+.nbadge.pro { background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(168,85,247,0.2)); border: 1px solid rgba(124,58,237,0.4); color: var(--pxt); }
+.nbadge.live { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+.online-pill { display: flex; align-items: center; gap: 4px; font-size: 0.62rem; color: var(--green); font-weight: 500; }
+.odot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(34,197,94,0.8); animation: pdot 2s infinite; }
 @keyframes pdot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
 
-/* ── QUICK PROMPTS BAR ── */
 .qp-bar {
-    position: fixed;
-    top: 62px; left: 0; right: 0;
-    z-index: 199;
-    background: rgba(7,7,18,0.88);
-    backdrop-filter: blur(16px);
+    position: fixed; top: 62px; left: 0; right: 0; z-index: 199;
+    background: rgba(7,7,18,0.88); backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
-    padding: 8px 14px;
-    overflow-x: auto;
-    white-space: nowrap;
-    scrollbar-width: none;
-    display: flex; gap: 6px; align-items: center;
+    padding: 8px 14px; overflow-x: auto; white-space: nowrap;
+    scrollbar-width: none; display: flex; gap: 6px; align-items: center;
 }
 .qp-bar::-webkit-scrollbar { display: none; }
 .qp-chip {
     display: inline-flex; align-items: center; gap: 5px;
-    background: rgba(124,58,237,0.07);
-    border: 1px solid rgba(124,58,237,0.18);
-    border-radius: 20px;
-    padding: 5px 13px;
-    font-size: 0.74rem; font-weight: 500;
-    color: var(--text-mid);
-    white-space: nowrap;
-    transition: all 0.15s;
-    font-family: 'Outfit', sans-serif;
+    background: rgba(124,58,237,0.07); border: 1px solid rgba(124,58,237,0.18);
+    border-radius: 20px; padding: 5px 13px;
+    font-size: 0.74rem; font-weight: 500; color: var(--mid);
+    white-space: nowrap; transition: all 0.15s; font-family: 'Outfit', sans-serif;
 }
-.qp-chip:hover { background: rgba(124,58,237,0.18); border-color: var(--border-p); color: var(--purple-xt); }
-.qp-chip.active { background: rgba(124,58,237,0.22); border-color: var(--border-p); color: var(--purple-xt); }
+.qp-chip.active { background: rgba(124,58,237,0.22); border-color: var(--border-p); color: var(--pxt); }
 
-/* ── CHAT AREA ── */
-.chat-wrap {
-    padding: 140px 14px 130px;
-    display: flex; flex-direction: column; gap: 14px;
-    min-height: 100vh; position: relative; z-index: 1;
-}
+.chat-wrap { padding: 140px 0 130px; display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 1; }
 
-/* Message rows */
-.msg-row {
-    display: flex; gap: 9px; align-items: flex-end;
-    animation: fadeUp 0.28s cubic-bezier(.16,1,.3,1);
-}
-@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.msg-row { display: flex; gap: 9px; align-items: flex-end; animation: fadeUp 0.28s cubic-bezier(.16,1,.3,1); }
 .msg-row.user { flex-direction: row-reverse; }
+.mavatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; background: linear-gradient(135deg, #7c3aed, #06b6d4); box-shadow: 0 0 0 2px rgba(124,58,237,0.2), 0 2px 8px rgba(124,58,237,0.3); }
+.mavatar.user { background: linear-gradient(135deg, #4c1d95, #7c3aed); }
 
-.mavatar {
-    width: 30px; height: 30px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.8rem; flex-shrink: 0;
-    background: linear-gradient(135deg, #7c3aed, #06b6d4);
-    box-shadow: 0 0 0 2px rgba(124,58,237,0.2), 0 2px 8px rgba(124,58,237,0.3);
-}
-.mavatar.user {
-    background: linear-gradient(135deg, #4c1d95, #7c3aed);
-    box-shadow: 0 0 0 2px rgba(124,58,237,0.2);
-}
-
-.bubble {
-    max-width: 80%; padding: 12px 15px;
-    font-size: 0.875rem; line-height: 1.7;
-    word-break: break-word; position: relative;
-}
-.bubble.ai {
-    background: var(--ai-bg);
-    border: 1px solid rgba(124,58,237,0.15);
-    border-radius: 4px 18px 18px 18px;
-    color: var(--text);
-    box-shadow: 0 2px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03);
-}
-.bubble.user {
-    background: linear-gradient(135deg, #3b1d8a, #4c1d95);
-    border: 1px solid rgba(168,85,247,0.25);
-    border-radius: 18px 4px 18px 18px;
-    color: #f0e8ff;
-    box-shadow: 0 4px 20px rgba(76,29,149,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
-}
-
-/* Image in bubble */
+.bubble { max-width: 80%; padding: 12px 15px; font-size: 0.875rem; line-height: 1.7; word-break: break-word; }
+.bubble.ai { background: var(--ai-bg); border: 1px solid rgba(124,58,237,0.15); border-radius: 4px 18px 18px 18px; color: var(--text); box-shadow: 0 2px 16px rgba(0,0,0,0.3); }
+.bubble.user { background: linear-gradient(135deg, #3b1d8a, #4c1d95); border: 1px solid rgba(168,85,247,0.25); border-radius: 18px 4px 18px 18px; color: #f0e8ff; box-shadow: 0 4px 20px rgba(76,29,149,0.4); }
 .bubble img { max-width: 100%; border-radius: 10px; margin: 8px 0; display: block; }
-
-.btime {
-    font-size: 0.6rem; color: rgba(255,255,255,0.25);
-    margin-top: 6px; display: flex; align-items: center; gap: 3px;
-}
+.btime { font-size: 0.6rem; color: rgba(255,255,255,0.25); margin-top: 6px; display: flex; align-items: center; gap: 3px; }
 .msg-row.user .btime { justify-content: flex-end; }
 .tick { color: var(--cyan); font-size: 0.68rem; }
 
-/* Typing */
 .typing-row { display: flex; gap: 9px; align-items: flex-end; }
-.typing-bubble {
-    background: var(--ai-bg);
-    border: 1px solid rgba(124,58,237,0.15);
-    border-radius: 4px 18px 18px 18px;
-    padding: 14px 18px;
-    display: flex; gap: 5px; align-items: center;
-}
-.tdot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--purple-lt);
-    animation: tbounce 1.3s infinite;
-}
-.tdot:nth-child(2){animation-delay:.22s}
-.tdot:nth-child(3){animation-delay:.44s}
-@keyframes tbounce {
-    0%,60%,100%{transform:translateY(0);opacity:.35}
-    30%{transform:translateY(-9px);opacity:1}
-}
+.typing-bubble { background: var(--ai-bg); border: 1px solid rgba(124,58,237,0.15); border-radius: 4px 18px 18px 18px; padding: 14px 18px; display: flex; gap: 5px; align-items: center; }
+.tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--plt); animation: tbounce 1.3s infinite; }
+.tdot:nth-child(2){animation-delay:.22s} .tdot:nth-child(3){animation-delay:.44s}
+@keyframes tbounce { 0%,60%,100%{transform:translateY(0);opacity:.35} 30%{transform:translateY(-9px);opacity:1} }
 
-/* Welcome screen */
-.welcome {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 30px 16px 20px; text-align: center;
-}
-.welcome-glow {
-    font-size: 3.2rem; font-weight: 900; letter-spacing: -2px;
-    background: linear-gradient(135deg, #c084fc 0%, #7c3aed 45%, #06b6d4 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text; line-height: 1; margin-bottom: 6px;
-    filter: drop-shadow(0 0 30px rgba(124,58,237,0.4));
-}
-.welcome-tag {
-    font-size: 0.65rem; letter-spacing: 3px; text-transform: uppercase;
-    color: var(--text-dim); margin-bottom: 24px;
-}
-.welcome-card {
-    background: var(--ai-bg);
-    border: 1px solid rgba(124,58,237,0.2);
-    border-radius: 4px 20px 20px 20px;
-    padding: 16px 18px; text-align: left;
-    color: var(--text); font-size: 0.875rem; line-height: 1.7;
-    max-width: 320px; width: 100%;
-    box-shadow: 0 8px 32px rgba(124,58,237,0.12);
-    animation: fadeUp 0.4s cubic-bezier(.16,1,.3,1);
-}
+.welcome { display: flex; flex-direction: column; align-items: center; padding: 30px 0 20px; text-align: center; }
+.welcome-glow { font-size: 3.2rem; font-weight: 900; letter-spacing: -2px; background: linear-gradient(135deg, #c084fc 0%, #7c3aed 45%, #06b6d4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; margin-bottom: 6px; filter: drop-shadow(0 0 30px rgba(124,58,237,0.4)); }
+.welcome-tag { font-size: 0.65rem; letter-spacing: 3px; text-transform: uppercase; color: var(--dim); margin-bottom: 24px; }
+.welcome-card { background: var(--ai-bg); border: 1px solid rgba(124,58,237,0.2); border-radius: 4px 20px 20px 20px; padding: 16px 18px; text-align: left; color: var(--text); font-size: 0.875rem; line-height: 1.7; width: 100%; box-shadow: 0 8px 32px rgba(124,58,237,0.12); animation: fadeUp 0.4s cubic-bezier(.16,1,.3,1); }
 
-/* Prefill hint */
-.pfhint {
-    background: rgba(124,58,237,0.1);
-    border: 1px solid rgba(124,58,237,0.28);
-    border-radius: 10px; padding: 7px 13px;
-    font-size: 0.74rem; color: var(--purple-xt);
-    margin: 0 0 6px; display: flex; align-items: center; gap: 7px;
-}
+.pfhint { background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.28); border-radius: 10px; padding: 7px 13px; font-size: 0.74rem; color: var(--pxt); margin: 0 0 6px; display: flex; align-items: center; gap: 7px; }
 
-/* ── INPUT ZONE ── */
-.input-zone {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    z-index: 200;
-    background: rgba(7,7,18,0.96);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid var(--border);
-    padding: 8px 14px 16px;
-}
-.input-note {
-    text-align: center; font-size: 0.59rem;
-    color: var(--text-dim); margin-top: 7px; letter-spacing: 0.2px;
-}
-.new-chat-row {
-    display: flex; justify-content: center; margin-bottom: 8px;
-}
-.new-chat-pill {
-    background: rgba(124,58,237,0.1);
-    border: 1px solid rgba(124,58,237,0.25);
-    border-radius: 20px; padding: 5px 18px;
-    font-size: 0.73rem; font-weight: 600;
-    color: var(--purple-xt); cursor: pointer;
-    transition: all 0.2s;
-    font-family: 'Outfit', sans-serif;
-}
-.new-chat-pill:hover {
-    background: rgba(124,58,237,0.2);
-    border-color: var(--border-p);
-}
+.input-zone { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: rgba(7,7,18,0.96); backdrop-filter: blur(20px); border-top: 1px solid var(--border); padding: 8px 14px 16px; }
+.input-note { text-align: center; font-size: 0.59rem; color: var(--dim); margin-top: 7px; }
 
-/* Streamlit chat input override */
-div[data-testid="stChatInput"] {
-    position: static !important;
-    background: transparent !important;
-    padding: 0 !important;
+.stTextInput > div > div > input {
+    background: rgba(124,58,237,0.06) !important; border: 1px solid rgba(124,58,237,0.2) !important;
+    border-radius: 11px !important; color: var(--text) !important;
+    font-family: 'Outfit', sans-serif !important; font-size: 0.88rem !important; transition: all .2s !important;
 }
-div[data-testid="stChatInput"] > div {
-    background: var(--card) !important;
-    border: 1px solid rgba(124,58,237,0.28) !important;
-    border-radius: 16px !important;
-    transition: all 0.2s !important;
-    box-shadow: 0 0 0 0 rgba(124,58,237,0) !important;
-}
-div[data-testid="stChatInput"] > div:focus-within {
-    border-color: rgba(124,58,237,0.6) !important;
-    box-shadow: 0 0 0 3px rgba(124,58,237,0.1) !important;
-}
-div[data-testid="stChatInput"] textarea {
-    background: transparent !important;
-    color: var(--text) !important;
-    font-family: 'Outfit', sans-serif !important;
-    font-size: 0.9rem !important;
-    caret-color: var(--purple-lt) !important;
-}
-div[data-testid="stChatInput"] textarea::placeholder { color: var(--text-dim) !important; }
-div[data-testid="stChatInput"] button[data-testid="stChatInputSubmitButton"] {
-    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
-    border-radius: 10px !important; border: none !important;
-    box-shadow: 0 4px 14px rgba(124,58,237,0.45) !important;
-    transition: all 0.2s !important;
-}
-div[data-testid="stChatInput"] button:hover {
-    transform: scale(1.05) !important;
-    box-shadow: 0 6px 20px rgba(124,58,237,0.55) !important;
-}
+.stTextInput > div > div > input:focus { border-color: rgba(124,58,237,0.55) !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.1) !important; }
+.stTextInput > div > div > input::placeholder { color: var(--dim) !important; }
+.stTextInput label { font-size: 0.72rem !important; font-weight: 600 !important; color: var(--mid) !important; font-family: 'Outfit',sans-serif !important; }
 
-/* File uploader */
-[data-testid="stFileUploader"] {
-    background: transparent !important;
-}
-[data-testid="stFileUploader"] section {
-    background: rgba(124,58,237,0.06) !important;
-    border: 1px dashed rgba(124,58,237,0.3) !important;
-    border-radius: 12px !important;
-    padding: 10px !important;
-}
-[data-testid="stFileUploader"] label {
-    color: var(--text-mid) !important;
-    font-size: 0.8rem !important;
-}
-[data-testid="stFileUploaderDropzoneInstructions"] {
-    color: var(--text-dim) !important; font-size: 0.75rem !important;
-}
-
-/* Streamlit buttons */
 .stButton > button {
-    background: rgba(124,58,237,0.1) !important;
-    border: 1px solid rgba(124,58,237,0.25) !important;
-    border-radius: 12px !important; color: var(--purple-xt) !important;
-    font-family: 'Outfit', sans-serif !important;
-    font-size: 0.78rem !important; font-weight: 600 !important;
-    transition: all 0.2s !important; padding: 6px 16px !important;
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    border: none !important; border-radius: 11px !important; color: #fff !important;
+    font-family: 'Outfit',sans-serif !important; font-size: 0.88rem !important;
+    font-weight: 700 !important; width: 100% !important;
+    box-shadow: 0 4px 18px rgba(124,58,237,0.4) !important; transition: all .2s !important;
 }
-.stButton > button:hover {
-    background: rgba(124,58,237,0.2) !important;
-    border-color: var(--border-p) !important;
-    transform: translateY(-1px) !important;
-}
+.stButton > button:hover { transform: translateY(-2px) !important; box-shadow: 0 7px 24px rgba(124,58,237,0.5) !important; }
 
-/* Markdown in bubbles */
-.bubble h1,.bubble h2,.bubble h3 {
-    color: var(--purple-xt); margin: 10px 0 5px;
-    font-size: 0.95rem; font-weight: 700;
-}
+div[data-testid="stChatInput"] { position: static !important; background: transparent !important; padding: 0 !important; }
+div[data-testid="stChatInput"] > div { background: var(--card2) !important; border: 1px solid rgba(124,58,237,0.28) !important; border-radius: 16px !important; transition: all 0.2s !important; }
+div[data-testid="stChatInput"] > div:focus-within { border-color: rgba(124,58,237,0.6) !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.1) !important; }
+div[data-testid="stChatInput"] textarea { background: transparent !important; color: var(--text) !important; font-family: 'Outfit', sans-serif !important; font-size: 0.9rem !important; caret-color: var(--plt) !important; }
+div[data-testid="stChatInput"] textarea::placeholder { color: var(--dim) !important; }
+div[data-testid="stChatInput"] button[data-testid="stChatInputSubmitButton"] { background: linear-gradient(135deg, #7c3aed, #a855f7) !important; border-radius: 10px !important; border: none !important; box-shadow: 0 4px 14px rgba(124,58,237,0.45) !important; }
+
+[data-testid="stFileUploader"] section { background: rgba(124,58,237,0.06) !important; border: 1px dashed rgba(124,58,237,0.3) !important; border-radius: 12px !important; padding: 10px !important; }
+
+.bubble h1,.bubble h2,.bubble h3 { color: var(--pxt); margin: 10px 0 5px; font-size: 0.95rem; font-weight: 700; }
 .bubble p { margin: 4px 0; }
 .bubble ul,.bubble ol { padding-left: 18px; margin: 5px 0; }
 .bubble li { margin: 3px 0; }
-.bubble code {
-    background: rgba(124,58,237,0.15);
-    border: 1px solid rgba(124,58,237,0.2);
-    border-radius: 4px; padding: 1px 5px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem; color: #c4b5fd;
-}
-.bubble pre {
-    background: rgba(0,0,0,0.4);
-    border: 1px solid rgba(124,58,237,0.2);
-    border-radius: 10px; padding: 12px;
-    overflow-x: auto; margin: 8px 0;
-}
+.bubble code { background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.2); border-radius: 4px; padding: 1px 5px; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #c4b5fd; }
+.bubble pre { background: rgba(0,0,0,0.4); border: 1px solid rgba(124,58,237,0.2); border-radius: 10px; padding: 12px; overflow-x: auto; margin: 8px 0; }
 .bubble pre code { background: none; border: none; padding: 0; color: #c4b5fd; }
 .bubble strong { color: #ddd6fe; }
-.bubble em { color: var(--text-mid); font-style: italic; }
+.bubble em { color: var(--mid); font-style: italic; }
 .bubble a { color: var(--cyan); text-decoration: underline; }
 .bubble hr { border: none; border-top: 1px solid rgba(124,58,237,0.2); margin: 10px 0; }
 </style>
@@ -473,6 +311,13 @@ def get_time():
     t = time.localtime()
     h, m = t.tm_hour, t.tm_min
     return f"{h%12 or 12}:{m:02d} {'AM' if h<12 else 'PM'}"
+
+def get_initials(name):
+    p = name.strip().split()
+    return (p[0][0]+p[-1][0]).upper() if len(p)>=2 else name[:2].upper()
+
+def valid_email(e):
+    return bool(re.match(r'^[^@]+@[^@]+\.[^@]+$', e))
 
 def safe_md(text):
     text = re.sub(r'```(\w+)?\n(.*?)```', lambda m: f'<pre><code>{m.group(2)}</code></pre>', text, flags=re.DOTALL)
@@ -490,228 +335,281 @@ def safe_md(text):
     lines = text.split('\n')
     out = []
     for line in lines:
-        stripped = line.strip()
-        if stripped and not stripped.startswith('<'):
-            out.append(f'<p>{stripped}</p>')
+        s = line.strip()
+        if s and not s.startswith('<'):
+            out.append(f'<p>{s}</p>')
         else:
             out.append(line)
     return '\n'.join(out)
 
-def image_to_b64(uploaded_file):
-    return base64.b64encode(uploaded_file.read()).decode('utf-8')
+def image_to_b64(f):
+    return base64.b64encode(f.read()).decode('utf-8')
 
 def call_groq(messages, image_b64=None, image_type=None):
-    url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-
-    api_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-
+    api_msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
     for msg in messages[:-1]:
-        api_messages.append({"role": msg["role"], "content": msg["content"]})
-
-    # Last message — attach image if provided
+        api_msgs.append({"role": msg["role"], "content": msg["content"]})
     last = messages[-1]
     if image_b64 and image_type:
-        content = [
+        api_msgs.append({"role": "user", "content": [
             {"type": "text", "text": last["content"]},
-            {"type": "image_url", "image_url": {
-                "url": f"data:{image_type};base64,{image_b64}"
-            }}
-        ]
-        api_messages.append({"role": "user", "content": content})
+            {"type": "image_url", "image_url": {"url": f"data:{image_type};base64,{image_b64}"}}
+        ]})
     else:
-        api_messages.append({"role": "user", "content": last["content"]})
-
-    r = requests.post(url, headers=headers, json={
-        "model": MODEL,
-        "messages": api_messages,
-        "temperature": 0.75,
-        "max_tokens": 2048,
-    })
+        api_msgs.append({"role": "user", "content": last["content"]})
+    r = requests.post("https://api.groq.com/openai/v1/chat/completions",
+        headers=headers,
+        json={"model": MODEL, "messages": api_msgs, "temperature": 0.75, "max_tokens": 2048})
     return r.json()["choices"][0]["message"]["content"]
 
-# ─── Session ───────────────────────────────────────────────────
-if "messages"  not in st.session_state: st.session_state.messages  = []
-if "prefill"   not in st.session_state: st.session_state.prefill   = ""
-if "active_qp" not in st.session_state: st.session_state.active_qp = ""
-if "pending_img" not in st.session_state: st.session_state.pending_img = None
-if "pending_img_type" not in st.session_state: st.session_state.pending_img_type = None
-if "pending_img_name" not in st.session_state: st.session_state.pending_img_name = None
+# ─── COOKIE CONTROLLER ─────────────────────────────────────────
+controller = CookieController()
 
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
 if not GROQ_API_KEY:
-    st.error("⚠️ GROQ_API_KEY not set in Streamlit Secrets.")
+    st.error("⚠️ GROQ_API_KEY not set.")
     st.stop()
 
-# ─── TOP BAR ───────────────────────────────────────────────────
-st.markdown("""
-<div class="nexo-topbar">
-    <div class="nexo-brand">
-        <div class="nexo-logo-text">NEXO</div>
-        <div class="nexo-sub-text">Your AI Companion</div>
-    </div>
-    <div class="topbar-right">
-        <div class="badge-row">
-            <span class="nbadge pro">PRO</span>
-            <span class="nbadge live">LIVE</span>
-        </div>
-        <div class="online-pill"><span class="odot"></span> Online</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+# ─── Session State ──────────────────────────────────────────────
+for k, v in {
+    "splash_done": False, "messages": [], "prefill": "",
+    "active_qp": "", "pending_img": None, "pending_img_type": None,
+    "pending_img_name": None, "show_profile": False,
+}.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
-# ─── QUICK PROMPTS BAR ─────────────────────────────────────────
-chips_html = '<div class="qp-bar">'
-for icon, label, _ in QUICK_PROMPTS:
-    cls = "active" if st.session_state.active_qp == label else ""
-    chips_html += f'<span class="qp-chip {cls}">{icon} {label}</span>'
-chips_html += '</div>'
-st.markdown(chips_html, unsafe_allow_html=True)
+# Cookie read
+saved_name  = controller.get("nexo_name")
+saved_email = controller.get("nexo_email")
+is_logged_in = bool(saved_name and saved_email)
 
-# Hidden real buttons for quick prompts
-with st.container():
-    st.markdown('<div style="display:none;height:0;overflow:hidden">', unsafe_allow_html=True)
-    for icon, label, prefix in QUICK_PROMPTS:
-        if st.button(f"{icon}{label}", key=f"qp_{label}"):
-            st.session_state.prefill = prefix
-            st.session_state.active_qp = label
+# ════════════════════════════════════════════════════════════════
+# SPLASH — always once per browser session
+# ════════════════════════════════════════════════════════════════
+if not st.session_state.splash_done:
+    st.markdown("""
+    <div class="splash">
+        <div class="s-logo">NEXO</div>
+        <div class="s-tag">Smart Conversations · Smarter Results</div>
+        <div class="s-bar-wrap"><div class="s-bar"></div></div>
+    </div>
+    """, unsafe_allow_html=True)
+    time.sleep(2.0)
+    st.session_state.splash_done = True
+    st.rerun()
+
+# ════════════════════════════════════════════════════════════════
+# LOGIN — only if no cookie
+# ════════════════════════════════════════════════════════════════
+elif not is_logged_in:
+    st.markdown("""
+    <div style="text-align:center; padding:28px 0 16px; position:relative; z-index:1;">
+        <div class="l-logo">NEXO</div>
+        <div class="l-sub">Your AI Companion</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="l-card">', unsafe_allow_html=True)
+    st.markdown('<div class="l-title">Sign In ✦</div>', unsafe_allow_html=True)
+    st.markdown('<div class="l-desc">Enter your details to access Nexo AI</div>', unsafe_allow_html=True)
+
+    name_in  = st.text_input("Your Name", placeholder="Hasith Heshan", key="n_in")
+    email_in = st.text_input("Email Address", placeholder="you@example.com", key="e_in")
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    if st.button("✦ Sign In to Nexo", key="signin"):
+        if not name_in.strip():
+            st.error("⚠️ Please enter your name")
+        elif not email_in.strip():
+            st.error("⚠️ Please enter your email")
+        elif not valid_email(email_in.strip()):
+            st.error("⚠️ Please enter a valid email address")
+        else:
+            with st.spinner("Signing you in..."):
+                time.sleep(0.8)
+            # Save to cookies — 30 days
+            controller.set("nexo_name",  name_in.strip().title(),  max_age=30*24*60*60)
+            controller.set("nexo_email", email_in.strip().lower(), max_age=30*24*60*60)
             st.rerun()
+
+    st.markdown("""
+    <div class="l-footer">No password required · Nexo AI remembers you for 30 days</div>
+    """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ─── CHAT AREA ─────────────────────────────────────────────────
-st.markdown('<div class="chat-wrap">', unsafe_allow_html=True)
+# ════════════════════════════════════════════════════════════════
+# MAIN APP
+# ════════════════════════════════════════════════════════════════
+else:
+    name  = saved_name
+    email = saved_email
+    first = name.split()[0]
+    ini   = get_initials(name)
 
-if not st.session_state.messages:
+    # ── PROFILE CARD ──
+    if st.session_state.show_profile:
+        st.markdown(f"""
+        <div class="profile-card">
+            <div class="pc-avatar">{ini}</div>
+            <div class="pc-name">{name}</div>
+            <div class="pc-email">{email}</div>
+            <div class="pc-divider"></div>
+            <div class="pc-row"><span>🔐 Status</span><span>Active ✓</span></div>
+            <div class="pc-row"><span>📅 Session</span><span>30 days</span></div>
+            <div class="pc-row"><span>⚡ Plan</span><span>PRO</span></div>
+            <div class="pc-row"><span>🤖 Engine</span><span>NEXO AI</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("✕ Close", key="close_profile"):
+                st.session_state.show_profile = False
+                st.rerun()
+        with c2:
+            if st.button("🚪 Sign Out", key="signout"):
+                controller.remove("nexo_name")
+                controller.remove("nexo_email")
+                st.session_state.show_profile = False
+                st.session_state.messages = []
+                st.rerun()
+
+    # ── TOP BAR ──
     st.markdown(f"""
-    <div class="welcome">
-        <div class="welcome-glow">NEXO</div>
-        <div class="welcome-tag">Smart Conversations · Smarter Results</div>
-        <div class="welcome-card">
-            <div>Hey! I'm <strong style="color:#c4b5fd">Nexo</strong> 👋</div>
-            <div style="margin-top:5px">How can I help you today?</div>
-            <div style="margin-top:3px">Feel free to ask me anything — or tap a quick action above!</div>
-            <div class="btime">{get_time()}</div>
+    <div class="nexo-topbar">
+        <div>
+            <div class="nexo-logo-text">NEXO</div>
+            <div class="nexo-sub-text">Hey, {first} 👋</div>
+        </div>
+        <div class="topbar-right">
+            <div class="badge-row">
+                <span class="nbadge pro">PRO</span>
+                <span class="nbadge live">LIVE</span>
+            </div>
+            <div class="online-pill"><span class="odot"></span> Online</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-else:
-    for msg in st.session_state.messages:
-        t = get_time()
-        if msg["role"] == "user":
-            content_html = ""
-            if msg.get("image_b64"):
-                img_type = msg.get("image_type", "image/jpeg")
-                content_html += f'<img src="data:{img_type};base64,{msg["image_b64"]}" style="max-width:200px;border-radius:10px;margin-bottom:6px;display:block">'
-            content_html += msg["content"] if msg["content"] else ""
-            st.markdown(f"""
-            <div class="msg-row user">
-                <div class="mavatar user">👤</div>
-                <div class="bubble user">
-                    {content_html}
-                    <div class="btime">{t} <span class="tick">✓✓</span></div>
-                </div>
+
+    # Avatar button — profile toggle
+    if st.button(f"{ini} ▾", key="profile_btn"):
+        st.session_state.show_profile = not st.session_state.show_profile
+        st.rerun()
+
+    # ── QUICK PROMPTS ──
+    chips_html = '<div class="qp-bar">'
+    for icon, label, _ in QUICK_PROMPTS:
+        cls = "active" if st.session_state.active_qp == label else ""
+        chips_html += f'<span class="qp-chip {cls}">{icon} {label}</span>'
+    chips_html += '</div>'
+    st.markdown(chips_html, unsafe_allow_html=True)
+
+    with st.container():
+        st.markdown('<div style="display:none;height:0;overflow:hidden">', unsafe_allow_html=True)
+        for icon, label, prefix in QUICK_PROMPTS:
+            if st.button(f"{icon}{label}", key=f"qp_{label}"):
+                st.session_state.prefill = prefix
+                st.session_state.active_qp = label
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── CHAT ──
+    st.markdown('<div class="chat-wrap">', unsafe_allow_html=True)
+
+    if not st.session_state.messages:
+        st.markdown(f"""
+        <div class="welcome">
+            <div class="welcome-glow">NEXO</div>
+            <div class="welcome-tag">Smart Conversations · Smarter Results</div>
+            <div class="welcome-card">
+                <div>Hey <strong style="color:#c4b5fd">{first}</strong>! I'm Nexo 👋</div>
+                <div style="margin-top:5px">How can I help you today?</div>
+                <div style="margin-top:3px">Feel free to ask anything — or tap a quick action above!</div>
+                <div class="btime">{get_time()}</div>
             </div>
-            """, unsafe_allow_html=True)
-        else:
-            rendered = safe_md(msg["content"])
-            st.markdown(f"""
-            <div class="msg-row ai">
-                <div class="mavatar">⚡</div>
-                <div class="bubble ai">
-                    {rendered}
-                    <div class="btime">{t}</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        for msg in st.session_state.messages:
+            t = get_time()
+            if msg["role"] == "user":
+                c_html = ""
+                if msg.get("image_b64"):
+                    c_html += f'<img src="data:{msg.get("image_type","image/jpeg")};base64,{msg["image_b64"]}" style="max-width:200px;border-radius:10px;margin-bottom:6px;display:block">'
+                c_html += msg["content"] or ""
+                st.markdown(f"""
+                <div class="msg-row user">
+                    <div class="mavatar user">👤</div>
+                    <div class="bubble user">{c_html}<div class="btime">{t} <span class="tick">✓✓</span></div></div>
+                </div>""", unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="msg-row ai">
+                    <div class="mavatar">⚡</div>
+                    <div class="bubble ai">{safe_md(msg["content"])}<div class="btime">{t}</div></div>
+                </div>""", unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# ─── INPUT ZONE ────────────────────────────────────────────────
-st.markdown('<div class="input-zone">', unsafe_allow_html=True)
+    # ── INPUT ZONE ──
+    st.markdown('<div class="input-zone">', unsafe_allow_html=True)
 
-# New chat
-col_nc, col_sp = st.columns([1, 3])
-with col_nc:
     if st.button("＋ New Chat", key="new_chat"):
         st.session_state.messages = []
         st.session_state.prefill = ""
         st.session_state.active_qp = ""
         st.session_state.pending_img = None
+        st.rerun()
+
+    if st.session_state.prefill:
+        st.markdown(f'<div class="pfhint">✦ <strong>{st.session_state.active_qp}</strong> — type your topic</div>', unsafe_allow_html=True)
+
+    with st.expander("📷 Attach Image", expanded=False):
+        uploaded = st.file_uploader("", type=["jpg","jpeg","png","webp","gif"], key="img_upload", label_visibility="collapsed")
+        if uploaded:
+            st.session_state.pending_img = image_to_b64(uploaded)
+            st.session_state.pending_img_type = uploaded.type
+            st.session_state.pending_img_name = uploaded.name
+            st.success(f"✓ {uploaded.name} ready")
+
+    user_input = st.chat_input("Message Nexo...")
+    st.markdown('<div class="input-note">Nexo AI · Verify important information independently</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── HANDLE INPUT ──
+    if user_input and user_input.strip():
+        text = (st.session_state.prefill + user_input.strip()) if st.session_state.prefill else user_input.strip()
+        st.session_state.prefill = ""
+        st.session_state.active_qp = ""
+        user_msg = {"role": "user", "content": text}
+        if st.session_state.pending_img:
+            user_msg["image_b64"] = st.session_state.pending_img
+            user_msg["image_type"] = st.session_state.pending_img_type
+        st.session_state.messages.append(user_msg)
+        img_b64 = st.session_state.pending_img
+        img_type = st.session_state.pending_img_type
+        st.session_state.pending_img = None
         st.session_state.pending_img_type = None
         st.session_state.pending_img_name = None
         st.rerun()
 
-# Prefill hint
-if st.session_state.prefill:
-    st.markdown(f"""
-    <div class="pfhint">✦ <strong>{st.session_state.active_qp}</strong> — type your topic below</div>
-    """, unsafe_allow_html=True)
-
-# Image upload
-with st.expander("📷 Attach Image", expanded=False):
-    uploaded = st.file_uploader(
-        "Upload an image for Nexo to analyze",
-        type=["jpg", "jpeg", "png", "webp", "gif"],
-        key="img_upload",
-        label_visibility="collapsed"
-    )
-    if uploaded:
-        st.session_state.pending_img = image_to_b64(uploaded)
-        st.session_state.pending_img_type = uploaded.type
-        st.session_state.pending_img_name = uploaded.name
-        st.success(f"✓ {uploaded.name} ready to send")
-
-# Chat input
-user_input = st.chat_input("Type your message...")
-st.markdown('<div class="input-note">Nexo AI · Verify important information independently</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ─── HANDLE INPUT ──────────────────────────────────────────────
-if user_input and user_input.strip():
-    text = (st.session_state.prefill + user_input.strip()
-            if st.session_state.prefill else user_input.strip())
-    st.session_state.prefill = ""
-    st.session_state.active_qp = ""
-
-    user_msg = {"role": "user", "content": text}
-    if st.session_state.pending_img:
-        user_msg["image_b64"] = st.session_state.pending_img
-        user_msg["image_type"] = st.session_state.pending_img_type
-
-    st.session_state.messages.append(user_msg)
-
-    img_b64  = st.session_state.pending_img
-    img_type = st.session_state.pending_img_type
-    st.session_state.pending_img = None
-    st.session_state.pending_img_type = None
-    st.session_state.pending_img_name = None
-
-    st.rerun()
-
-if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    last = st.session_state.messages[-1]
-    img_b64  = last.get("image_b64")
-    img_type = last.get("image_type")
-
-    # Show typing indicator
-    st.markdown("""
-    <div class="typing-row">
-        <div class="mavatar">⚡</div>
-        <div class="typing-bubble">
-            <div class="tdot"></div><div class="tdot"></div><div class="tdot"></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    with st.spinner(""):
-        try:
-            # Build clean messages for API (no image_b64 fields in history)
-            api_msgs = []
-            for m in st.session_state.messages:
-                api_msgs.append({"role": m["role"], "content": m["content"]})
-
-            reply = call_groq(api_msgs, img_b64, img_type)
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-            st.rerun()
-        except Exception as e:
-            st.error(f"Connection error: {e}")
+    if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+        last = st.session_state.messages[-1]
+        st.markdown("""
+        <div class="typing-row">
+            <div class="mavatar">⚡</div>
+            <div class="typing-bubble">
+                <div class="tdot"></div><div class="tdot"></div><div class="tdot"></div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+        with st.spinner(""):
+            try:
+                api_msgs = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+                reply = call_groq(api_msgs, last.get("image_b64"), last.get("image_type"))
+                st.session_state.messages.append({"role": "assistant", "content": reply})
+                st.rerun()
+            except Exception as e:
+                st.error(f"Connection error: {e}")
