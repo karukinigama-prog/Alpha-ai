@@ -147,32 +147,29 @@ section[data-testid="stSidebar"],
 
 /* ── PROFILE DROPDOWN ── */
 .profile-drop {
-    position: fixed;
-    top: 62px; right: 14px;
-    width: 230px;
     background: var(--card);
     border: 1px solid var(--border-p);
-    border-radius: 16px; padding: 14px;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(124,58,237,0.15);
+    border-radius: 20px; padding: 18px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.1);
     animation: fadeUp .2s cubic-bezier(.16,1,.3,1);
-    z-index: 500;
+    margin-bottom: 12px; position: relative; z-index: 300;
 }
 .pd-avatar {
-    width: 40px; height: 40px; border-radius: 50%;
+    width: 52px; height: 52px; border-radius: 50%;
     background: linear-gradient(135deg, #7c3aed, #06b6d4);
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.9rem; font-weight: 800; color: white;
-    margin: 0 auto 8px;
-    box-shadow: 0 0 0 2px rgba(124,58,237,0.25);
+    font-size: 1.2rem; font-weight: 800; color: white;
+    margin: 0 auto 10px;
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.25), 0 4px 16px rgba(124,58,237,0.3);
     animation: popIn .35s cubic-bezier(.16,1,.3,1);
 }
-.pd-name  { font-size: 0.85rem; font-weight: 800; text-align: center; }
-.pd-email { font-size: 0.62rem; color: var(--mid); text-align: center; margin-bottom: 8px; margin-top: 2px; }
-.pd-divider { height: 1px; background: var(--border); margin: 8px 0; }
-.pd-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.68rem; color: var(--mid); border-bottom: 1px solid rgba(255,255,255,0.04); }
+.pd-name  { font-size: 0.95rem; font-weight: 800; text-align: center; }
+.pd-email { font-size: 0.68rem; color: var(--mid); text-align: center; margin-bottom: 12px; margin-top: 2px; }
+.pd-divider { height: 1px; background: var(--border); margin: 10px 0; }
+.pd-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.73rem; color: var(--mid); border-bottom: 1px solid rgba(255,255,255,0.04); }
 .pd-row:last-child { border-bottom: none; }
 .pd-row span:last-child { color: var(--pxt); font-weight: 600; }
-.pd-actions { display: flex; gap: 8px; margin-top: 10px; }
+.pd-actions { display: flex; gap: 8px; margin-top: 14px; }
 
 /* ── TOPBAR ── */
 .nexo-topbar { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: rgba(7,7,18,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
@@ -287,9 +284,9 @@ def valid_email(e):
     return bool(re.match(r'^[^@]+@[^@]+\.[^@]+$', e))
 
 def fix_sinhala(text):
-    """Fix Sinhala text — remove extra spaces only between letters, keep word spaces"""
-    # Only remove space when it's between combining characters (not word boundaries)
-    text = re.sub(r'([\u0DCA-\u0DDF\u0DCF-\u0DDF])\s+([\u0D9A-\u0DFF])', r'\1\2', text)
+    """Remove extra spaces that appear in Sinhala text"""
+    # Fix extra spaces between Sinhala unicode characters
+    text = re.sub(r'([\u0D80-\u0DFF])\s+([\u0D80-\u0DFF])', r'\1\2', text)
     return text
 
 def safe_md(text):
@@ -353,14 +350,9 @@ for k, v in {
     if k not in st.session_state:
         st.session_state[k] = v
 
-# Read cookies — safe method with fallback
-try:
-    saved_email = controller.get("nexo_email")
-    saved_name  = controller.get("nexo_name")
-except Exception:
-    saved_email = None
-    saved_name  = None
-
+# Read cookies — exact Gemini method
+saved_email = controller.get("nexo_email")
+saved_name  = controller.get("nexo_name")
 is_logged_in = bool(saved_email and saved_name)
 
 # ════════════════════════════════════
