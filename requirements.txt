@@ -1,4 +1,4 @@
 streamlit>=1.32.0
 requests>=2.31.0
 markdown>=3.5.0
-streamlit-cookies-controller
+extra-streamlit-components
