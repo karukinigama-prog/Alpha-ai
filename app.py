@@ -336,11 +336,7 @@ if not GROQ_API_KEY:
     st.error("⚠️ GROQ_API_KEY not set.")
     st.stop()
 
-@st.cache_resource
-def get_cookie_manager():
-    return stx.CookieManager()
-
-cookie_manager = get_cookie_manager()
+cookie_manager = stx.CookieManager()
 
 for k, v in {
     "splash_done": False, "messages": [], "prefill": "",
