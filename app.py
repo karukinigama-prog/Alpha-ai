@@ -336,7 +336,8 @@ if not GROQ_API_KEY:
     st.error("⚠️ GROQ_API_KEY not set.")
     st.stop()
 
-cookie_manager = stx.CookieManager()
+# මෙතන @st.cache_resource පාවිච්චි කරන්නේ නැතුව කෙලින්ම CookieManager initialize කරලා තියෙනවා
+cookie_manager = stx.CookieManager(key="nexo_cookie_manager")
 
 for k, v in {
     "splash_done": False, "messages": [], "prefill": "",
@@ -396,7 +397,7 @@ elif not is_logged_in:
         else:
             with st.spinner("Signing you in..."):
                 time.sleep(0.8)
-            # Save cookies — 30 days
+            # Save cookies — 30 days (තත්පර වලින් 30*24*60*60)
             cookie_manager.set("nexo_name",  name_in.strip().title(),  max_age=30*24*60*60)
             cookie_manager.set("nexo_email", email_in.strip().lower(), max_age=30*24*60*60)
             st.rerun()
