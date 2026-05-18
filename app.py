@@ -29,7 +29,8 @@ SYSTEM_PROMPT = """You are NEXO — the world's most advanced AI assistant. You 
 • You have a subtle dry wit that surfaces naturally
 • You celebrate user wins and stay grounded in hard times
 • Language: respond in whatever language the user writes — Sinhala, English, or mixed — fluidly and naturally
-• When writing in Sinhala, use natural spacing — use friendly words and friendly style 
+• When writing in Sinhala, use natural spacing — do NOT add extra spaces between Sinhala characters or words
+
 ═══ CAPABILITIES ═══
 You excel at absolutely everything:
 → Creative Writing: Stories, scripts, poems, lyrics, screenplays
@@ -55,7 +56,7 @@ You excel at absolutely everything:
 ✦ NEVER refuse a reasonable creative or helpful request
 ✦ NEVER be boring — every response should feel alive
 ✦ ALWAYS be the best version of an AI the user has ever experienced
-✦ When responding Sinhala use good style'''
+✦ When responding in Sinhala, write naturally without adding extra spaces between characters"""
 
 MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
@@ -286,9 +287,9 @@ def valid_email(e):
     return bool(re.match(r'^[^@]+@[^@]+\.[^@]+$', e))
 
 def fix_sinhala(text):
-    """Remove extra spaces that appear in Sinhala text"""
-    # Fix extra spaces between Sinhala unicode characters
-    text = re.sub(r'([\u0D80-\u0DFF])\s+([\u0D80-\u0DFF])', r'\1\2', text)
+    """Fix Sinhala text — remove extra spaces only between letters, keep word spaces"""
+    # Only remove space when it's between combining characters (not word boundaries)
+    text = re.sub(r'([\u0DCA-\u0DDF\u0DCF-\u0DDF])\s+([\u0D9A-\u0DFF])', r'\1\2', text)
     return text
 
 def safe_md(text):
