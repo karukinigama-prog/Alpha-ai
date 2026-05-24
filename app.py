@@ -1,8 +1,7 @@
 import streamlit as st
 import os
+import subprocess
 from groq import Groq
-from pydub import AudioSegment
-import io
 
 st.set_page_config(page_title="Vault Audio AI", page_icon="🎙️", layout="centered")
 st.title("🎙️ Lightning Fast Audio-to-Text Converter")
@@ -35,26 +34,30 @@ if uploaded_file is not None:
                     client = Groq(api_key=groq_api_key)
                     
                     file_ext = uploaded_file.name.split(".")[-1].lower()
-                    audio_bytes = uploaded_file.getbuffer()
                     
-                    # AMR නම් MP3 එකට convert කරනවා
+                    # temp file save කරනවා
+                    temp_input = f"temp_input.{file_ext}"
+                    temp_output = "temp_output.mp3"
+                    
+                    with open(temp_input, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    
+                    # AMR නම් ffmpeg දිගින් convert කරනවා
                     if file_ext == "amr":
-                        audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="amr")
-                        converted = io.BytesIO()
-                        audio.export(converted, format="mp3")
-                        converted.seek(0)
-                        send_bytes = converted.read()
-                        send_name = "audio.mp3"
+                        subprocess.run([
+                            "ffmpeg", "-y", "-i", temp_input, temp_output
+                        ], check=True, capture_output=True)
+                        send_file = temp_output
                     else:
-                        send_bytes = bytes(audio_bytes)
-                        send_name = uploaded_file.name
+                        send_file = temp_input
                     
-                    transcription = client.audio.transcriptions.create(
-                        file=(send_name, send_bytes),
-                        model=model_choice,
-                        response_format="text",
-                        temperature=0.0
-                    )
+                    with open(send_file, "rb") as audio_file:
+                        transcription = client.audio.transcriptions.create(
+                            file=(send_file, audio_file.read()),
+                            model=model_choice,
+                            response_format="text",
+                            temperature=0.0
+                        )
                     
                     st.success("⚡ Transcription Completed!")
                     st.text_area("📄 Transcribed Text:", value=transcription, height=300)
@@ -68,3 +71,8 @@ if uploaded_file is not None:
                     
                 except Exception as e:
                     st.error(f"An error occurred: {str(e)}")
+                    
+                finally:
+                    for f in ["temp_input.amr", "temp_input.mp3", "temp_output.mp3"]:
+                        if os.path.exists(f):
+                            os.remove(f)
