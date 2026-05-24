@@ -21,9 +21,10 @@ with st.sidebar:
 
 # 2. File Upload Area
 uploaded_file = st.file_uploader(
-    "Upload an Audio File (MP3, WAV, M4A, OGG)", 
-    type=["mp3", "wav", "m4a", "ogg"]
+    "Upload an Audio File (MP3, WAV, M4A, OGG, AMR)", 
+    type=["mp3", "wav", "m4a", "ogg", "amr"]
 )
+
 
 # 3. Processing Core Logic
 if uploaded_file is not None:
